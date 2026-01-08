@@ -185,6 +185,17 @@ func (h *Hub) ClientCount() int {
 	return len(h.clients)
 }
 
+// BroadcastJSON sends a generic JSON object to all connected clients
+func (h *Hub) BroadcastJSON(data map[string]interface{}) {
+	data["timestamp"] = time.Now().UnixMilli()
+	msg := &Message{
+		Type:      MessageType(data["type"].(string)),
+		Timestamp: time.Now().UnixMilli(),
+		Data:      data["data"],
+	}
+	h.broadcast <- msg
+}
+
 // ServeWS handles WebSocket upgrade requests
 func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)

@@ -117,6 +117,70 @@ func (g *Graph) IsNodeActive(nodeID string) bool {
 	return false
 }
 
+// RemoveNode removes a node and all its edges
+func (g *Graph) RemoveNode(nodeID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	
+	delete(g.nodes, nodeID)
+	delete(g.edges, nodeID)
+	delete(g.entropy, nodeID)
+	
+	// Remove edges pointing to this node
+	for source := range g.edges {
+		delete(g.edges[source], nodeID)
+	}
+}
+
+// GetAllNodes returns all nodes in the graph
+func (g *Graph) GetAllNodes() []*Node {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	
+	nodes := make([]*Node, 0, len(g.nodes))
+	for _, node := range g.nodes {
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
+// RemoveEdge removes an edge from the graph
+func (g *Graph) RemoveEdge(sourceID, targetID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	
+	if edges, ok := g.edges[sourceID]; ok {
+		delete(edges, targetID)
+	}
+}
+
+// GetAllEdges returns all edges in the graph
+func (g *Graph) GetAllEdges() []*Edge {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	
+	edges := make([]*Edge, 0)
+	for _, targets := range g.edges {
+		for _, edge := range targets {
+			edges = append(edges, edge)
+		}
+	}
+	return edges
+}
+
+// UpdateEdge updates an existing edge
+func (g *Graph) UpdateEdge(sourceID, targetID string, baseFee float64, latency int64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	
+	if edges, ok := g.edges[sourceID]; ok {
+		if edge, ok := edges[targetID]; ok {
+			edge.BaseFee = baseFee
+			edge.Latency = latency
+		}
+	}
+}
+
 // GetEdgeWeight calculates the entropy-weighted edge weight.
 // Formula: W = Fee × (1 + H), where H is Shannon entropy.
 func (g *Graph) GetEdgeWeight(edge *Edge) float64 {

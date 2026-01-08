@@ -244,6 +244,26 @@ func (c *Client) SetNodeActive(ctx context.Context, nodeID string, isActive bool
 	return err
 }
 
+// CreateNode creates a new node in Neo4j (for admin API)
+func (c *Client) CreateNode(ctx context.Context, nodeType string, props map[string]interface{}) error {
+	session := c.driver.NewSession(ctx, neo4j.SessionConfig{
+		DatabaseName: c.database,
+		AccessMode:   neo4j.AccessModeWrite,
+	})
+	defer session.Close(ctx)
+
+	query := fmt.Sprintf(`
+		CREATE (n:%s $props)
+		RETURN n
+	`, nodeType)
+
+	_, err := session.Run(ctx, query, map[string]interface{}{
+		"props": props,
+	})
+
+	return err
+}
+
 // Helper functions for property extraction
 func getStringProp(props map[string]interface{}, key string) string {
 	if val, ok := props[key]; ok {

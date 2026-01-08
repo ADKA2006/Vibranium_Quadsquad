@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/plm/predictive-liquidity-mesh/api/handlers"
+	"github.com/plm/predictive-liquidity-mesh/api/middleware"
+	"github.com/plm/predictive-liquidity-mesh/auth"
 	"github.com/plm/predictive-liquidity-mesh/demo"
 	"github.com/plm/predictive-liquidity-mesh/engine/router"
 	"github.com/plm/predictive-liquidity-mesh/websocket"
@@ -34,20 +36,50 @@ func main() {
 	// Start WebSocket hub
 	go wsHub.Run(ctx)
 
-	// Initialize chaos handler (without Redis for demo)
-	chaosHandler := handlers.NewChaosHandler(nil, meshRouter, graph, wsHub)
+	// Initialize PASETO token manager
+	tokenManager, err := auth.NewTokenManager(auth.DefaultTokenConfig())
+	if err != nil {
+		log.Fatalf("Failed to create token manager: %v", err)
+	}
 
-	// Initialize demo
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(tokenManager)
+
+	// Initialize handlers
+	chaosHandler := handlers.NewChaosHandler(nil, meshRouter, graph, wsHub)
 	chaosDemo := demo.NewChaosDemo(meshRouter, graph, wsHub, func(nodeID string) error {
 		graph.SetNodeInactive(nodeID)
 		return nil
 	})
+	authHandler := handlers.NewAuthHandler(tokenManager)
+	adminHandler := handlers.NewAdminHandler(graph, nil, wsHub)
+	userHandler := handlers.NewUserHandler(meshRouter, graph)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
 
-	// WebSocket endpoint
+	// Public endpoints
 	mux.HandleFunc("/ws", wsHub.ServeWS)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Auth endpoints (public)
+	mux.HandleFunc("/api/v1/auth/login", authHandler.HandleLogin)
+
+	// Protected User endpoints (require auth)
+	mux.Handle("/api/v1/settle/preview", authMiddleware.Authenticate(http.HandlerFunc(userHandler.HandleSettlePreview)))
+
+	// Protected Admin endpoints (require auth + admin role)
+	mux.Handle("/api/v1/admin/nodes", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(adminHandler.HandleCreateNode)))
+	mux.Handle("/api/v1/admin/edges", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(adminHandler.HandleCreateEdge)))
 
 	// Debug/Chaos endpoints
 	mux.HandleFunc("/debug/kill/", chaosHandler.HandleKillNode)
@@ -57,12 +89,6 @@ func main() {
 	// Demo endpoints
 	mux.HandleFunc("/demo/attack", chaosDemo.HandleAttackDemo)
 	mux.HandleFunc("/demo/reset", chaosDemo.HandleResetDemo)
-
-	// Health check
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
 
 	// Static files for frontend
 	fs := http.FileServer(http.Dir("./frontend/public"))

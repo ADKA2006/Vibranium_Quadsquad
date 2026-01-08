@@ -1,144 +1,211 @@
-
-version: "3.9"
+# ==============================================================================
+# PLM Production Docker Compose
+# ==============================================================================
+# Unified orchestration for Predictive Liquidity Mesh
+# Run with: docker compose up -d
+# ==============================================================================
 
 services:
   # ============================================================================
-  # Backend Service (Go API)
+  # PLM Core Application (Go Backend + Next.js Frontend)
   # ============================================================================
-  backend:
+  plm-core:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
-    container_name: plm-backend
+    container_name: plm_core
     restart: unless-stopped
     environment:
+      # Server Config
       GO_PORT: "8080"
-      NEO4J_URI: "neo4j://neo4j:7687"
-      NEO4J_USER: "neo4j"
-      NEO4J_PASSWORD: "password"
-      NEO4J_DATABASE: "neo4j"
-      POSTGRES_HOST: "postgres"
+      FRONTEND_PORT: "3000"
+      
+      # Database Connections (use Docker service names)
+      NEO4J_URI: "neo4j://plm-mesh-db:7687"
+      NEO4J_USER: "${NEO4J_USER:-neo4j}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-password}"
+      NEO4J_DATABASE: "${NEO4J_DATABASE:-neo4j}"
+      
+      POSTGRES_HOST: "plm-ledger"
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      POSTGRES_DB: "plm_ledger"
-      REDIS_URL: "redis://redis:6379"
-      TOKEN_SECRET: "${TOKEN_SECRET:-plm-hackathon-secret-key-32bytes!}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: "${POSTGRES_DB:-plm_ledger}"
+      
+      REDIS_URL: "redis://plm-cache:6379"
+      NATS_URL: "nats://plm-nats:4222"
+      
+      # Security Keys (MUST be set in .env for production!)
+      TOKEN_SECRET: "${TOKEN_SECRET:-plm-dev-token-key-NOT-FOR-PROD-!}"
+      TOKEN_ISSUER: "${TOKEN_ISSUER:-plm-auth}"
+      TOKEN_TTL: "${TOKEN_TTL:-24h}"
+      RECEIPT_SIGNATURE_KEY: "${RECEIPT_SIGNATURE_KEY:-}"
+      USER_ID_SALT: "${USER_ID_SALT:-}"
+      
+      # External APIs
+      EXCHANGE_RATE_API_KEY: "${EXCHANGE_RATE_API_KEY:-}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY:-}"
     ports:
-      - "8080:8080"
+      - "8080:8080"   # Go Backend API
+      - "3000:3000"   # Next.js Frontend
+      - "50051:50051" # gRPC (if enabled)
+    networks:
+      - plm-internal
+      - plm-external
     depends_on:
-      neo4j:
+      plm-mesh-db:
         condition: service_healthy
-      postgres:
+      plm-ledger:
         condition: service_healthy
-      redis:
+      plm-cache:
+        condition: service_healthy
+      plm-nats:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
-    networks:
-      - plm-network
+      start_period: 30s
 
   # ============================================================================
-  # Frontend Service (Next.js)
+  # Neo4j Graph Database (Mesh Topology)
   # ============================================================================
-  frontend:
-    build:
-      context: ../frontend-next
-      dockerfile: Dockerfile
-    container_name: plm-frontend
+  plm-mesh-db:
+    image: neo4j:5-community
+    container_name: plm_neo4j
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: "http://backend:8080"
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - plm-network
-
-  # ============================================================================
-  # Neo4j (Graph Database)
-  # ============================================================================
-  neo4j:
-    image: neo4j:5-community
-    container_name: plm-neo4j
-    environment:
-      NEO4J_AUTH: "neo4j/password"
+      NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-password}"
       NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_dbms_memory_heap_initial__size: "512m"
+      NEO4J_dbms_memory_heap_max__size: "1G"
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7474:7474"  # HTTP Browser
+      - "7687:7687"  # Bolt Protocol
     volumes:
       - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - plm-internal
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 30s
-    networks:
-      - plm-network
+      start_period: 60s
 
   # ============================================================================
-  # PostgreSQL (Transaction Ledger)
+  # PostgreSQL (Immutable Transaction Ledger)
   # ============================================================================
-  postgres:
+  plm-ledger:
     image: postgres:16-alpine
-    container_name: plm-postgres
+    container_name: plm_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      POSTGRES_DB: "plm_ledger"
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: "${POSTGRES_DB:-plm_ledger}"
     volumes:
+      - ./migrations:/docker-entrypoint-initdb.d:ro
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - plm-internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - plm-network
+      retries: 10
 
   # ============================================================================
-  # Redis (Cache)
+  # Redis Cache (FX Rates & Rate Limiting)
   # ============================================================================
-  redis:
+  plm-cache:
     image: redis:7-alpine
-    container_name: plm-redis
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
+    container_name: plm_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - plm-internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # ============================================================================
+  # NATS JetStream (High-Speed Messaging)
+  # ============================================================================
+  plm-nats:
+    image: nats:2.10-alpine
+    container_name: plm_nats
+    restart: unless-stopped
+    command: ["--jetstream", "--store_dir=/data", "-m", "8222"]
+    volumes:
+      - nats_data:/data
     networks:
-      - plm-network
+      - plm-internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Caddy Reverse Proxy (HTTPS/mTLS)
+  # ============================================================================
+  plm-proxy:
+    image: caddy:2-alpine
+    container_name: plm_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - plm-internal
+      - plm-external
+    depends_on:
+      plm-core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 # ==============================================================================
 # Networks
 # ==============================================================================
 networks:
-  plm-network:
+  plm-internal:
+    driver: bridge
+    internal: true  # No external access - databases isolated
+  plm-external:
     driver: bridge
 
 # ==============================================================================
 # Volumes
 # ==============================================================================
 volumes:
-  neo4j_data:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  nats_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

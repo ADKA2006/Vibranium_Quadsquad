@@ -59,6 +59,11 @@ func (c *Client) Close(ctx context.Context) error {
 	return c.driver.Close(ctx)
 }
 
+// Driver returns the underlying Neo4j driver
+func (c *Client) Driver() neo4j.DriverWithContext {
+	return c.driver
+}
+
 // Node represents a mesh node
 type Node struct {
 	ID       string

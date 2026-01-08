@@ -1,1 +1,190 @@
-This implementation plan details the end-to-end development of the Predictive Liquidity Mesh (PLM), an anti-fragile, high-performance fintech architecture. It is optimized for a coding agent to execute phase-by-phase with clear success criteria.🏗️ Phase 1: High-Performance HA Storage & LedgerGoal: Establish a single source of truth with audit integrity and performance tuning.📝 Agent Prompt: Storage & ACID Tuning"Implement the HA Storage Layer using PostgreSQL and Redis.Task 1: PostgreSQL Ledger. Create migrations/001_init_ledger.sql.Audit Integrity: Implement a hash-chained ledger. Every new entry must include a previous_hash pointing to the SHA-256 hash of the prior row.ACID Tuning: Configure the DB connection to set synchronous_commit = off. This prioritizes throughput by allowing the WAL to flush asynchronously while maintaining data consistency.Task 2: Redis Sentinel & Circuit Breaking. > * Configure Redis for Rate Limiting using a sliding-window algorithm (e.g., redis_rate package).Implement a Circuit Breaker state store in Redis to track failing liquidity nodes across the cluster.Task 3: Neo4j Relationship Mesh.Define Cypher scripts to seed a mesh of SME nodes and Liquidity Provider edges. Edges must store properties: base_fee, latency, and liquidity_volume."✅ Checkpoint 1: The Integrity TestVerification: Insert 5 rows into the ledger.Success: Verify row $N$'s previous_hash matches row $N-1$'s cryptographic hash. Verify synchronous_commit status via SHOW synchronous_commit;.🧠 Phase 2: The "Entropy" Backend EngineGoal: Implement the core routing novelty and high-concurrency Go patterns.📝 Agent Prompt: Routing & Concurrency"Build the Go Backend Engine (v1.24+) focusing on memory efficiency and the routing algorithm.Task 1: Concurrency Control. > * Implement a Worker Pool using github.com/gammazero/workerpool to cap goroutine explosion.Use sync.Pool to reuse SettlementRequest objects, significantly reducing GC pauses for critical paths.Task 2: Entropy-Weighted Router. > * Implement Yen's K-Shortest Path algorithm to find the top 3 alternative routes.Weighting Logic: Calculate edge weights using the formula $W = \text{Fee} \times (1 + H)$, where $H$ is the Shannon Entropy of the node's current liquidity distribution (higher entropy = higher volatility/unpredictability).Task 3: gRPC Communication. > * Setup mTLS-secured gRPC for node-to-node transaction settlement as shown in the architecture diagram."✅ Checkpoint 2: The "Router Efficiency" TestVerification: Run go test -bench on the router.Success: The router must return $K=3$ paths in $<10ms$ for a 50-node graph.⚡ Phase 3: NATS Distributed Cluster & Async QueuesGoal: Enable event-driven graph updates and eventual consistency.📝 Agent Prompt: Messaging & Eventual Consistency"Integrate NATS JetStream for the asynchronous event bus.Task 1: Async Work Queues. Create a NATS stream for liquidity.updates. Use Work Queues so that liquidity change events are processed exactly once by a pool of consumers.Task 2: Graph Sync. Implement a consumer that listens to the NATS stream and updates the Neo4j Relationship Mesh. This ensures Eventual Consistency between the Postgres ledger and the graph visualization."✅ Checkpoint 3: The "Latency" TestVerification: Publish a liquidity update to NATS.Success: The Neo4j graph must reflect the new value in $<50ms$.🌐 Phase 4: Edge Proxy & Real-Time UIGoal: Secure the edge and provide live "Waze-like" visualization.📝 Agent Prompt: Caddy & WebSockets"Develop the Frontend Layer and Edge Proxy.Task 1: Caddy LB Policy. Configure the Caddyfile with a least_conn load balancing policy. This routes client requests to the backend node with the fewest active connections, preventing 'herding'.Task 2: Real-Time WebSockets. > * Implement a WebSocket (WSS) server in Go to push live path updates to the frontend.Task 3: Cytoscape.js Mesh. > * Build a Next.js Dashboard using Cytoscape.js.Animate the graph: edges should glow when transactions pass through, and nodes should turn red when the Redis circuit breaker opens."✅ Checkpoint 4: Load Balance VerificationVerification: Connect 10 WebSocket clients.Success: Verify via Caddy logs that connections are distributed based on active counts, not just round-robin.🛡️ Phase 5: Anti-Fragility "Chaos" DemoGoal: Prove the system instantly recovers from hub failure.📝 Agent Prompt: Interfere & Re-route"Implement the final 'Attack Demo' feature.Task 1: Node Kill Switch. Create a debug endpoint /debug/kill/{node_id} that instantly triggers the Redis circuit breaker for that node and closes its gRPC listener.Task 2: Visual Re-routing. > * Initiate a mock $10,000 transaction.Kill a node in the 'Primary Path' mid-flight.The backend must catch the error, query the Yen's K-Shortest secondary path, and successfully settle on the alternative route.The UI must visually 'snap' the green path line to the new route via WebSockets."✅ Checkpoint 5: The "Waze" MomentVerification: Run the chaos script.Success: Dashboard shows path A -> B -> D failing and instantly re-routing to A -> C -> D with zero lost funds in the ledger.
+# Full-Stack Application Setup: Next.js 14 + Go Backend
+
+Implementation plan for a comprehensive full-stack setup with authentication, Neo4j country data, admin dashboard, and FX rate worker.
+
+## Proposed Changes
+
+### 1. Next.js 14 Frontend Setup
+
+#### [NEW] frontend-next/ 
+Create a new Next.js 14 application directory with:
+- Pages for home, login, register, and admin dashboard
+- API routes that proxy to Go backend
+- Auth context with PASETO token management
+- Modern UI with dark theme matching existing design
+
+**Key files:**
+- `frontend-next/app/page.tsx` - Home page
+- `frontend-next/app/login/page.tsx` - Login form
+- `frontend-next/app/register/page.tsx` - User registration form  
+- `frontend-next/app/admin/page.tsx` - Admin dashboard with node management
+- `frontend-next/lib/auth.ts` - Auth utilities and token handling
+
+---
+
+### 2. User & Admin Authentication Enhancements
+
+#### [MODIFY] [auth/password.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/auth/password.go)
+Already has Argon2id implementation - no changes needed.
+
+#### [NEW] storage/users/store.go
+Create user storage with in-memory store (upgradeable to Postgres):
+- `CreateUser(user)` - Hash password with Argon2id, store user
+- `GetUserByEmail(email)` - Retrieve user for login
+- `GetUserByID(id)` - For token validation
+
+#### [MODIFY] [api/handlers/protected.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/api/handlers/protected.go)
+- Add `HandleRegister` endpoint for user registration
+- Add proper password verification in `HandleLogin`
+
+#### [MODIFY] [cmd/server/main.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/cmd/server/main.go)
+- Add `/api/v1/auth/register` endpoint
+- Integrate user store
+
+---
+
+### 3. Neo4j Country Data Bootstrap
+
+#### [NEW] storage/neo4j/countries.go
+- Hardcoded list of top 50 GDP countries with properties:
+  - `CountryCode` (ISO 3166-1 alpha-3)
+  - `Name` (Country name)
+  - `Currency` (ISO 4217 currency code)
+  - `BaseCredibility`: 0.85
+  - `SuccessRate`: Based on economic stability data
+- `BootstrapCountries(ctx)` function to create nodes
+
+**Top 50 GDP Countries (sample):**
+| Rank | Country | Code | Currency | SuccessRate |
+|------|---------|------|----------|-------------|
+| 1 | United States | USA | USD | 0.95 |
+| 2 | China | CHN | CNY | 0.92 |
+| 3 | Germany | DEU | EUR | 0.94 |
+| 4 | Japan | JPN | JPY | 0.93 |
+| 5 | India | IND | INR | 0.88 |
+| ... | ... | ... | ... | ... |
+
+#### [MODIFY] [cmd/server/main.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/cmd/server/main.go)
+- Call `BootstrapCountries` on startup if Neo4j is connected
+
+---
+
+### 4. Admin Dashboard Node Management
+
+#### [NEW] api/handlers/country_admin.go
+- `HandleListCountries` - GET /api/v1/admin/countries
+- `HandleCreateCountry` - POST /api/v1/admin/countries
+- `HandleDeleteCountry` - DELETE /api/v1/admin/countries/{code}
+
+#### [MODIFY] [storage/neo4j/client.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/storage/neo4j/client.go)
+- Add `GetAllCountries(ctx)` method
+- Add `CreateCountryNode(ctx, country)` method
+- Add `DeleteCountryNode(ctx, code)` method
+
+---
+
+### 5. FX Rate Worker
+
+#### [NEW] workers/fx_rates/worker.go
+Background worker to fetch FX rates:
+- Uses ExchangeRate-API (free tier: https://www.exchangerate-api.com/)
+- Fetches rates for all 50 country currencies relative to USD
+- Updates Neo4j country nodes with current rates
+- Runs on configurable interval (default: 1 hour)
+
+#### [NEW] workers/fx_rates/types.go
+- `FXRate` struct with currency pair, rate, timestamp
+- `ExchangeRateAPIResponse` for API parsing
+
+#### [MODIFY] [cmd/server/main.go](file:///home/bhuvan1707/Desktop/Mock%20Hack%20B2B/Vibranium_Quadsquad_Unofficial/cmd/server/main.go)
+- Start FX rate worker goroutine on server startup
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **ExchangeRate-API Key**: You'll need to obtain a free API key from https://www.exchangerate-api.com/. The free tier allows 1500 requests/month.
+
+> [!WARNING]  
+> **Next.js Port**: The Next.js frontend will run on port 3000, while the existing Go backend runs on port 8080. You may need to configure CORS or use a reverse proxy.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+**1. Run existing Go tests:**
+```bash
+cd /home/bhuvan1707/Desktop/Mock\ Hack\ B2B/Vibranium_Quadsquad_Unofficial
+go test ./tests/... -v
+```
+
+**2. Test auth package:**
+```bash
+go test ./auth/... -v
+```
+
+### Manual Verification
+
+**1. User Registration Flow:**
+```bash
+# Start the server
+go run ./cmd/server/main.go
+
+# Register a new user
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123","username":"testuser"}'
+
+# Login with the new user
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123"}'
+```
+
+**2. Neo4j Country Nodes:**
+```bash
+# With Neo4j running (docker-compose up neo4j)
+# Open Neo4j Browser at http://localhost:7474
+# Run Cypher query:
+MATCH (c:Country) RETURN c LIMIT 10
+```
+
+**3. Admin Node Management:**
+```bash
+# Login as admin first
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@plm.local","password":"admin123"}' | jq -r .token)
+
+# List countries
+curl http://localhost:8080/api/v1/admin/countries \
+  -H "Authorization: Bearer $TOKEN"
+
+# Create a country
+curl -X POST http://localhost:8080/api/v1/admin/countries \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"TEST","name":"Test Country","currency":"TST","base_credibility":0.85,"success_rate":0.90}'
+
+# Delete a country
+curl -X DELETE http://localhost:8080/api/v1/admin/countries/TEST \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**4. FX Rate Worker:**
+- Check server logs for FX rate fetch messages
+- Query Neo4j for updated rates:
+```cypher
+MATCH (c:Country) WHERE c.fx_rate IS NOT NULL RETURN c.name, c.currency, c.fx_rate
+```
+
+**5. Next.js Frontend:**
+```bash
+cd frontend-next
+npm run dev
+# Open http://localhost:3000 in browser
+# Test login, registration, and admin dashboard
+```

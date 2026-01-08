@@ -102,6 +102,24 @@ func (m *AuthMiddleware) RequireAdmin(next http.Handler) http.Handler {
 	return m.RequireRole(auth.RoleAdmin)(next)
 }
 
+// RequireUser ensures only regular users (not admins) can access
+func (m *AuthMiddleware) RequireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := GetUserFromContext(r.Context())
+		if user == nil {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		if user.Role == auth.RoleAdmin {
+			http.Error(w, `{"error":"admins cannot make payments - use a regular user account"}`, http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // GetUserFromContext extracts the user from request context
 func GetUserFromContext(ctx context.Context) *auth.User {
 	user, ok := ctx.Value(UserContextKey).(*auth.User)

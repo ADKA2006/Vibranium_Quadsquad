@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"log"
+	"os"
 	"time"
 
 	"github.com/o1egl/paseto"
@@ -52,12 +54,31 @@ type TokenConfig struct {
 	TokenTTL     time.Duration
 }
 
-// DefaultTokenConfig returns development defaults
+// DefaultTokenConfig returns config from environment or development defaults
 func DefaultTokenConfig() *TokenConfig {
+	symmetricKey := os.Getenv("TOKEN_SECRET")
+	if symmetricKey == "" || len(symmetricKey) != 32 {
+		log.Println("⚠️  SECURITY WARNING: TOKEN_SECRET not set or invalid length - using insecure default (DEV ONLY)")
+		symmetricKey = "plm-dev-token-key-NOT-FOR-PROD-!" // Exactly 32 bytes
+	}
+	
+	issuer := os.Getenv("TOKEN_ISSUER")
+	if issuer == "" {
+		issuer = "plm-auth"
+	}
+	
+	ttlStr := os.Getenv("TOKEN_TTL")
+	ttl := 24 * time.Hour
+	if ttlStr != "" {
+		if parsed, err := time.ParseDuration(ttlStr); err == nil {
+			ttl = parsed
+		}
+	}
+	
 	return &TokenConfig{
-		SymmetricKey: "01234567890123456789012345678901", // 32 bytes - CHANGE IN PROD!
-		Issuer:       "plm-auth",
-		TokenTTL:     24 * time.Hour,
+		SymmetricKey: symmetricKey,
+		Issuer:       issuer,
+		TokenTTL:     ttl,
 	}
 }
 

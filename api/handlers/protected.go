@@ -13,6 +13,7 @@ import (
 	"github.com/plm/predictive-liquidity-mesh/auth"
 	"github.com/plm/predictive-liquidity-mesh/engine/router"
 	"github.com/plm/predictive-liquidity-mesh/storage/neo4j"
+	"github.com/plm/predictive-liquidity-mesh/storage/users"
 	"github.com/plm/predictive-liquidity-mesh/websocket"
 )
 
@@ -415,6 +416,7 @@ func (h *UserHandler) HandleSettlePreview(w http.ResponseWriter, r *http.Request
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
 	tokenManager *auth.TokenManager
+	userStore    UserStorer
 }
 
 // NewAuthHandler creates a new auth handler
@@ -435,6 +437,25 @@ type LoginResponse struct {
 	User      *auth.User `json:"user"`
 }
 
+// UserStorer interface for user operations - implemented by users.Store
+type UserStorer interface {
+	Authenticate(email, password string) (users.UserWithToUser, error)
+	CreateUser(email, password, username string, role auth.Role) (users.UserWithToUser, error)
+	GetByEmail(email string) (users.UserWithToUser, error)
+}
+
+// SetUserStore sets the user store for authentication
+func (h *AuthHandler) SetUserStore(store UserStorer) {
+	h.userStore = store
+}
+
+// RegisterRequest is the registration request body
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
 // HandleLogin handles POST /api/v1/auth/login
 func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -448,25 +469,32 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In production, you would:
-	// 1. Look up user in database by email
-	// 2. Verify password with auth.VerifyPassword()
-	// 3. Check if user is active and not locked
+	var user *auth.User
 
-	// For demo, create a mock user based on email
-	var role auth.Role
-	if req.Email == "admin@plm.local" {
-		role = auth.RoleAdmin
+	// Use user store if available, otherwise fallback to demo mode
+	if h.userStore != nil {
+		storedUser, err := h.userStore.Authenticate(req.Email, req.Password)
+		if err != nil {
+			http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+			return
+		}
+		user = storedUser.ToUser()
 	} else {
-		role = auth.RoleUser
-	}
+		// Demo mode fallback
+		var role auth.Role
+		if req.Email == "admin@plm.local" {
+			role = auth.RoleAdmin
+		} else {
+			role = auth.RoleUser
+		}
 
-	user := &auth.User{
-		ID:       "demo-user-id",
-		Email:    req.Email,
-		Username: req.Email[:len(req.Email)-len("@plm.local")],
-		Role:     role,
-		IsActive: true,
+		user = &auth.User{
+			ID:       "demo-user-id",
+			Email:    req.Email,
+			Username: req.Email[:strings.Index(req.Email, "@")],
+			Role:     role,
+			IsActive: true,
+		}
 	}
 
 	// Generate token
@@ -485,5 +513,63 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// HandleRegister handles POST /api/v1/auth/register
+func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	if h.userStore == nil {
+		http.Error(w, `{"error":"registration not available"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" || req.Password == "" || req.Username == "" {
+		http.Error(w, `{"error":"email, password, and username are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Password) < 6 {
+		http.Error(w, `{"error":"password must be at least 6 characters"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Create user with USER role by default
+	storedUser, err := h.userStore.CreateUser(req.Email, req.Password, req.Username, auth.RoleUser)
+	if err != nil {
+		log.Printf("❌ Registration failed: %v", err)
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusConflict)
+		return
+	}
+
+	user := storedUser.ToUser()
+
+	// Generate token
+	token, claims, err := h.tokenManager.GenerateToken(user)
+	if err != nil {
+		http.Error(w, `{"error":"failed to generate token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("🆕 User registered: %s (%s)", user.Email, user.Username)
+
+	resp := LoginResponse{
+		Token:     token,
+		ExpiresAt: claims.ExpiresAt,
+		User:      user,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
 }

@@ -25,6 +25,8 @@ const (
 	MsgTypeLiquidity MessageType = "LIQUIDITY_UPDATE"
 	// MsgTypeNodeStatus indicates node status change
 	MsgTypeNodeStatus MessageType = "NODE_STATUS"
+	// MsgTypeFXUpdate indicates FX rate update
+	MsgTypeFXUpdate MessageType = "fx_update"
 )
 
 // Message represents a WebSocket message to the frontend
@@ -175,6 +177,22 @@ func (h *Hub) BroadcastNodeStatus(update *NodeStatusUpdate) {
 	h.Broadcast(&Message{
 		Type: MsgTypeNodeStatus,
 		Data: update,
+	})
+}
+
+// FXRateUpdate represents FX rate data for broadcasting
+type FXRateUpdate struct {
+	Rates map[string]float64 `json:"rates"`
+}
+
+// BroadcastFXRates sends FX rate updates to all clients
+func (h *Hub) BroadcastFXRates(rates map[string]float64) {
+	h.Broadcast(&Message{
+		Type: MsgTypeFXUpdate,
+		Data: map[string]interface{}{
+			"type":  "fx_update",
+			"rates": rates,
+		},
 	})
 }
 

@@ -12,6 +12,7 @@ require (
 	github.com/gammazero/workerpool v1.1.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/jung-kurt/gofpdf v1.16.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/nats-io/nats.go v1.48.0 // indirect
@@ -19,8 +20,9 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4 // indirect
 	github.com/o1egl/paseto v1.0.0 // indirect
-	github.com/pkg/errors v0.8.0 // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/redis/go-redis/v9 v9.17.2 // indirect
+	github.com/stripe/stripe-go/v76 v76.25.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect

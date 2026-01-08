@@ -1,0 +1,59 @@
+# ==============================================================================
+# PLM Caddy Reverse Proxy Configuration
+# ==============================================================================
+# Production-ready reverse proxy with HTTPS and load balancing
+# ==============================================================================
+
+{
+    admin off
+    auto_https disable_redirects
+}
+
+# HTTP to HTTPS redirect
+:80 {
+    respond /health 200
+    redir https://{host}{uri} permanent
+}
+
+# Main HTTPS entry point
+:443 {
+    # TLS configuration (auto-generated for local dev)
+    tls internal
+
+    # Health check endpoint
+    respond /health 200
+
+    # API routes to Go backend
+    handle /api/* {
+        reverse_proxy plm-core:8080 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # WebSocket routes
+    handle /ws* {
+        reverse_proxy plm-core:8080 {
+            header_up Host {host}
+            header_up Connection {header.Connection}
+            header_up Upgrade {header.Upgrade}
+        }
+    }
+
+    # Frontend routes to Next.js
+    handle {
+        reverse_proxy plm-core:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}
+
+# Neo4j Browser (dev only - remove in production)
+:7475 {
+    reverse_proxy plm-mesh-db:7474
+}

@@ -1,0 +1,53 @@
+# ==============================================================================
+# PLM Docker Build Ignore
+# ==============================================================================
+
+# Git
+.git
+.gitignore
+
+# Dependencies (will be installed in container)
+node_modules
+frontend-next/node_modules
+
+# Build outputs
+.next
+frontend-next/.next
+*.exe
+*.dll
+*.so
+*.dylib
+server
+
+# Test files
+*_test.go
+tests/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+infra/
+
+# Documentation (not needed in container)
+*.md
+docs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/
+*.tmp

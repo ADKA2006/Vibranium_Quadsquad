@@ -1,0 +1,54 @@
+# ==============================================================================
+# PLM Git Ignore
+# ==============================================================================
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+/server
+*.exe
+*.dll
+*.so
+*.dylib
+.next/
+out/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+*.cover
+*.out
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Docker volumes
+postgres_data/
+redis_data/
+neo4j_data/

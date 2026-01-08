@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { auth, API_BASE_URL } from '@/lib/auth';
@@ -51,6 +51,14 @@ interface StripeInitResponse {
 }
 
 export default function PayPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <PayPageContent />
+        </Suspense>
+    );
+}
+
+function PayPageContent() {
     const { user, isLoading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();

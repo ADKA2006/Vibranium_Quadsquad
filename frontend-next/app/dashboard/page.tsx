@@ -74,11 +74,11 @@ export default function Dashboard() {
 
     // Load Leaflet CSS on client side
     useEffect(() => {
-        const loadCSS = async () => {
-            await import('leaflet/dist/leaflet.css');
+        if (typeof window !== 'undefined') {
+            // @ts-ignore - CSS import for leaflet
+            import('leaflet/dist/leaflet.css').catch(() => { });
             setMapReady(true);
-        };
-        loadCSS();
+        }
     }, []);
 
     // Connect to route WebSocket

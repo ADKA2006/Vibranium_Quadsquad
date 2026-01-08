@@ -1,0 +1,106 @@
+# ==============================================================================
+# PREDICTIVE LIQUIDITY MESH - CADDY EDGE PROXY
+# ==============================================================================
+# Load balancing policy: least_conn (fewest active connections)
+# This prevents "herding" by routing to the least loaded backend
+# ==============================================================================
+
+{
+    # Global options
+    admin off
+    auto_https disable_redirects
+}
+
+# Main entry point - HTTPS with WSS support
+:443 {
+    tls /etc/caddy/certs/server.crt /etc/caddy/certs/server.key
+
+    # Logging for connection tracking
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+
+    # WebSocket endpoint for real-time mesh updates
+    handle /ws/* {
+        reverse_proxy {
+            to backend-1:8080 backend-2:8080 backend-3:8080
+
+            # Least connections load balancing
+            lb_policy least_conn
+
+            # WebSocket support
+            transport http {
+                keepalive 30s
+                keepalive_idle_conns 10
+            }
+
+            # Health checks for backend nodes
+            health_uri /health
+            health_interval 5s
+            health_timeout 3s
+        }
+    }
+
+    # API endpoints
+    handle /api/* {
+        reverse_proxy {
+            to backend-1:8080 backend-2:8080 backend-3:8080
+
+            # Least connections for API requests
+            lb_policy least_conn
+
+            # Request headers
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Request-ID {uuid}
+
+            # Health checks
+            health_uri /health
+            health_interval 5s
+            health_timeout 3s
+
+            # Retry on failure
+            lb_try_duration 5s
+            lb_try_interval 250ms
+        }
+    }
+
+    # gRPC passthrough for settlement service
+    handle /grpc.* {
+        reverse_proxy {
+            to backend-1:50051 backend-2:50051 backend-3:50051
+
+            lb_policy least_conn
+
+            transport http {
+                versions h2c
+            }
+        }
+    }
+
+    # Frontend static files (Next.js)
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+
+# HTTP redirect to HTTPS
+:80 {
+    redir https://{host}{uri} permanent
+}
+
+# Monitoring endpoint (internal only)
+:8080 {
+    metrics /metrics
+    
+    handle /lb-stats {
+        respond "Caddy Load Balancer - least_conn policy active" 200
+    }
+}

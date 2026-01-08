@@ -82,6 +82,41 @@ func (g *Graph) UpdateNodeEntropy(nodeID string, distribution map[string]float64
 	g.entropy[nodeID] = entropy.CalculateNodeEntropy(nodeID, distribution)
 }
 
+// SetNodeActive marks a node as active
+func (g *Graph) SetNodeActive(nodeID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if node, ok := g.nodes[nodeID]; ok {
+		node.IsActive = true
+	}
+}
+
+// SetNodeInactive marks a node as inactive (for chaos testing)
+func (g *Graph) SetNodeInactive(nodeID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if node, ok := g.nodes[nodeID]; ok {
+		node.IsActive = false
+	}
+}
+
+// GetNode returns a node by ID
+func (g *Graph) GetNode(nodeID string) *Node {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.nodes[nodeID]
+}
+
+// IsNodeActive checks if a node is active
+func (g *Graph) IsNodeActive(nodeID string) bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if node, ok := g.nodes[nodeID]; ok {
+		return node.IsActive
+	}
+	return false
+}
+
 // GetEdgeWeight calculates the entropy-weighted edge weight.
 // Formula: W = Fee × (1 + H), where H is Shannon entropy.
 func (g *Graph) GetEdgeWeight(edge *Edge) float64 {

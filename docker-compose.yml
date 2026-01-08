@@ -68,8 +68,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Caddy Edge Proxy with least_conn load balancing
+  caddy:
+    image: caddy:2-alpine
+    container_name: plm_caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8081:8080"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nats
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/lb-stats"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_data:
   redis_data:
   neo4j_data:
   nats_data:
+  caddy_data:
+  caddy_config:

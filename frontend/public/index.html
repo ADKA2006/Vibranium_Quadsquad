@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Liquidity Mesh - Real-Time Dashboard</title>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: 70px 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: #1e1e3f;
+        }
+        
+        header {
+            grid-column: 1 / -1;
+            background: rgba(30, 30, 63, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected { background: #00ff88; }
+        .status-dot.disconnected { background: #ff4444; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        #mesh-container {
+            background: #0a0a1f;
+            position: relative;
+        }
+        
+        #cy {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .sidebar {
+            background: rgba(30, 30, 63, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .panel-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .metric:last-child { border-bottom: none; }
+        
+        .metric-label { color: rgba(255,255,255,0.7); font-size: 0.875rem; }
+        .metric-value { font-weight: 600; font-size: 1.125rem; }
+        .metric-value.success { color: #00ff88; }
+        .metric-value.warning { color: #ffaa00; }
+        .metric-value.danger { color: #ff4444; }
+        
+        .event-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .event {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.03);
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .event.path { border-left: 3px solid #00ff88; }
+        .event.circuit { border-left: 3px solid #ff4444; }
+        .event.liquidity { border-left: 3px solid #00d4ff; }
+        
+        .event-time {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+        }
+        
+        /* Edge glow animation for active transactions */
+        @keyframes edgeGlow {
+            0% { line-color: #00ff88; width: 3; }
+            50% { line-color: #00ffaa; width: 5; }
+            100% { line-color: #00ff88; width: 3; }
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .legend-dot.sme { background: #00d4ff; }
+        .legend-dot.lp { background: #aa66ff; }
+        .legend-dot.hub { background: #ffaa00; }
+        .legend-dot.circuit-open { background: #ff4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">⚡ Predictive Liquidity Mesh</div>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot" id="ws-status"></span>
+                    <span id="ws-status-text">Connecting...</span>
+                </div>
+                <div class="status-item">
+                    <span>Clients:</span>
+                    <span id="client-count">0</span>
+                </div>
+            </div>
+        </header>
+        
+        <div id="mesh-container">
+            <div id="cy"></div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="panel">
+                <div class="panel-title">Network Stats</div>
+                <div class="metric">
+                    <span class="metric-label">Transactions/sec</span>
+                    <span class="metric-value success" id="tps">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Latency</span>
+                    <span class="metric-value" id="latency">0ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Paths</span>
+                    <span class="metric-value" id="active-paths">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Circuit Breakers Open</span>
+                    <span class="metric-value" id="circuits-open">0</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Legend</div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <span class="legend-dot sme"></span>
+                        <span>SME</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot lp"></span>
+                        <span>Liquidity Provider</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot hub"></span>
+                        <span>Hub</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot circuit-open"></span>
+                        <span>Circuit Open</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">Event Log</div>
+                <div class="event-log" id="events"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="mesh.js"></script>
+</body>
+</html>

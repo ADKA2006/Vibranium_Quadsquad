@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package plm.settlement.v1;
+
+option go_package = "github.com/plm/predictive-liquidity-mesh/engine/grpc/pb";
+
+// SettlementService handles node-to-node transaction settlement
+service SettlementService {
+  // Settle initiates a transaction settlement between nodes
+  rpc Settle(SettleRequest) returns (SettleResponse);
+  
+  // StreamSettle provides bidirectional streaming for high-throughput settlement
+  rpc StreamSettle(stream SettleRequest) returns (stream SettleResponse);
+  
+  // GetNodeStatus returns the current status of a node
+  rpc GetNodeStatus(NodeStatusRequest) returns (NodeStatusResponse);
+  
+  // Heartbeat for health checking
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// SettleRequest represents a settlement transaction request
+message SettleRequest {
+  // Unique request ID (ULID)
+  string request_id = 1;
+  
+  // Source node ID
+  string source_id = 2;
+  
+  // Target node ID (next hop)
+  string target_id = 3;
+  
+  // Final destination node ID
+  string destination_id = 4;
+  
+  // Amount in smallest currency unit
+  int64 amount = 5;
+  
+  // Full routing path
+  repeated string path = 6;
+  
+  // Current hop index in path
+  int32 hop_index = 7;
+  
+  // Ed25519 signature (base64)
+  bytes signature = 8;
+  
+  // Original request timestamp (Unix millis)
+  int64 timestamp = 9;
+  
+  // Priority (1=highest, 5=lowest)
+  int32 priority = 10;
+  
+  // Optional metadata
+  map<string, string> metadata = 11;
+}
+
+// SettleResponse is the result of a settlement request
+message SettleResponse {
+  // Original request ID
+  string request_id = 1;
+  
+  // Settlement status
+  SettlementStatus status = 2;
+  
+  // Ledger entry ID if committed
+  string ledger_entry_id = 3;
+  
+  // Error code if failed
+  ErrorCode error_code = 4;
+  
+  // Error message if failed
+  string error_message = 5;
+  
+  // Actual path taken (may differ if rerouted)
+  repeated string actual_path = 6;
+  
+  // Total fee charged (in basis points)
+  int64 total_fee_bps = 7;
+  
+  // Processing latency in milliseconds
+  int64 latency_ms = 8;
+  
+  // Completion timestamp (Unix millis)
+  int64 completed_at = 9;
+}
+
+// SettlementStatus represents the current state of a settlement
+enum SettlementStatus {
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  SETTLEMENT_STATUS_PENDING = 1;
+  SETTLEMENT_STATUS_PROCESSING = 2;
+  SETTLEMENT_STATUS_COMPLETED = 3;
+  SETTLEMENT_STATUS_FAILED = 4;
+  SETTLEMENT_STATUS_REROUTED = 5;
+}
+
+// ErrorCode represents specific error conditions
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_INSUFFICIENT_LIQUIDITY = 1;
+  ERROR_CODE_NODE_UNAVAILABLE = 2;
+  ERROR_CODE_CIRCUIT_OPEN = 3;
+  ERROR_CODE_RATE_LIMITED = 4;
+  ERROR_CODE_SIGNATURE_INVALID = 5;
+  ERROR_CODE_PATH_NOT_FOUND = 6;
+  ERROR_CODE_TIMEOUT = 7;
+  ERROR_CODE_INTERNAL = 8;
+}
+
+// NodeStatusRequest queries a node's current status
+message NodeStatusRequest {
+  string node_id = 1;
+}
+
+// NodeStatusResponse contains node status information
+message NodeStatusResponse {
+  string node_id = 1;
+  bool is_active = 2;
+  CircuitState circuit_state = 3;
+  int64 current_load = 4;  // Percentage (0-100)
+  int64 available_liquidity = 5;
+  int64 pending_settlements = 6;
+  int64 timestamp = 7;
+}
+
+// CircuitState represents circuit breaker state
+enum CircuitState {
+  CIRCUIT_STATE_UNSPECIFIED = 0;
+  CIRCUIT_STATE_CLOSED = 1;
+  CIRCUIT_STATE_OPEN = 2;
+  CIRCUIT_STATE_HALF_OPEN = 3;
+}
+
+// HeartbeatRequest for health checking
+message HeartbeatRequest {
+  string node_id = 1;
+  int64 timestamp = 2;
+}
+
+// HeartbeatResponse confirms node liveness
+message HeartbeatResponse {
+  string node_id = 1;
+  bool healthy = 2;
+  int64 timestamp = 3;
+  string version = 4;
+}

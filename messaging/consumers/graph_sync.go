@@ -193,7 +193,7 @@ func (c *GraphSyncConsumer) updateLiquidityVolume(event *natsClient.LiquidityUpd
 
 	return c.neo4j.UpdateEdge(c.ctx, event.SourceID, event.TargetID, map[string]interface{}{
 		"liquidity_volume": int64(event.NewValue),
-		"last_updated":     event.Timestamp,
+		"last_updated":     event.Timestamp.UnixMilli(),
 	})
 }
 
@@ -205,7 +205,7 @@ func (c *GraphSyncConsumer) updateBaseFee(event *natsClient.LiquidityUpdateEvent
 
 	return c.neo4j.UpdateEdge(c.ctx, event.SourceID, event.TargetID, map[string]interface{}{
 		"base_fee":     event.NewValue,
-		"last_updated": event.Timestamp,
+		"last_updated": event.Timestamp.UnixMilli(),
 	})
 }
 
@@ -223,7 +223,7 @@ func (c *GraphSyncConsumer) updateLatency(event *natsClient.LiquidityUpdateEvent
 
 	return c.neo4j.UpdateEdge(c.ctx, event.SourceID, event.TargetID, map[string]interface{}{
 		"latency":      int64(event.NewValue),
-		"last_updated": event.Timestamp,
+		"last_updated": event.Timestamp.UnixMilli(),
 	})
 }
 
@@ -243,6 +243,7 @@ func (c *GraphSyncConsumer) GetStats() (*Stats, error) {
 	}
 
 	return &Stats{
-		Processed: int64(info.NumAckPending),
+		Processed: int64(info.Delivered.Consumer),
+		Failed:    int64(info.NumRedelivered),
 	}, nil
 }

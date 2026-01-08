@@ -122,7 +122,12 @@ func (g *Graph) IsNodeActive(nodeID string) bool {
 func (g *Graph) GetEdgeWeight(edge *Edge) float64 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	
+	return g.getEdgeWeightUnlocked(edge)
+}
+
+// getEdgeWeightUnlocked calculates edge weight without acquiring lock.
+// Caller must hold at least RLock.
+func (g *Graph) getEdgeWeightUnlocked(edge *Edge) float64 {
 	// Get source node entropy
 	H := 0.0
 	if nodeEntropy, ok := g.entropy[edge.SourceID]; ok {
@@ -282,6 +287,10 @@ func (r *Router) dijkstra(source, target string, excludedEdges, excludedNodes ma
 			if !edge.IsActive {
 				continue
 			}
+			// Skip inactive nodes
+			if targetNode, ok := r.graph.nodes[targetID]; ok && !targetNode.IsActive {
+				continue
+			}
 			if excludedNodes[targetID] {
 				continue
 			}
@@ -290,7 +299,7 @@ func (r *Router) dijkstra(source, target string, excludedEdges, excludedNodes ma
 				continue
 			}
 			
-			weight := r.graph.GetEdgeWeight(edge)
+			weight := r.graph.getEdgeWeightUnlocked(edge)
 			newDist := dist[current.node] + weight
 			
 			if newDist < dist[targetID] {
@@ -345,7 +354,7 @@ func (r *Router) combinePaths(rootNodes []string, spurPath *Path) *Path {
 				combined.Edges = append(combined.Edges, edge)
 				combined.TotalFee += edge.BaseFee
 				combined.TotalLatency += edge.Latency
-				combined.TotalWeight += r.graph.GetEdgeWeight(edge)
+				combined.TotalWeight += r.graph.getEdgeWeightUnlocked(edge)
 			}
 		}
 	}

@@ -146,6 +146,7 @@ func TestCheckpoint3_WorkQueueConsumer(t *testing.T) {
 		natsClient.LiquidityUpdatesStream,
 		"test-consumer",
 	)
+	consumerCfg.FilterSubject = "liquidity.>" // Required for work queue streams
 
 	consumer, err := client.CreateWorkQueueConsumer(ctx, consumerCfg)
 	if err != nil {

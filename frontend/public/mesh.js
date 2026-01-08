@@ -273,11 +273,13 @@ function handleMessage(message) {
 
 // Animate transaction path with glowing edges
 function handlePathUpdate(data) {
-    const { path, status, transaction_id, old_path } = data;
+    const { path, status, transaction_id } = data;
+    // Handle both camelCase and snake_case for old_path
+    const oldPath = data.old_path || data.OldPath;
 
     // If rerouted, show old path fading out
-    if (status === 'rerouted' && old_path) {
-        highlightPath(old_path, '#ff4444', 500);
+    if (status === 'rerouted' && oldPath) {
+        highlightPath(oldPath, '#ff4444', 500);
     }
 
     // Highlight new path
@@ -477,6 +479,69 @@ function startDemoMode() {
         }
     }, 8000);
 }
+
+// ============================================================================
+// Node Click Interaction - Show connected edges with arrows
+// ============================================================================
+
+cy.on('tap', 'node', function(evt) {
+    const node = evt.target;
+    const nodeId = node.id();
+    
+    // Reset all edges to default style
+    cy.edges().removeClass('highlighted').style({
+        'line-color': '#4a4a7f',
+        'target-arrow-color': '#4a4a7f',
+        'width': 2,
+        'opacity': 0.7
+    });
+    
+    // Find all edges connected to this node (both incoming and outgoing)
+    const connectedEdges = node.connectedEdges();
+    
+    // Highlight outgoing edges (from this node) in green
+    const outgoingEdges = connectedEdges.filter(edge => edge.data('source') === nodeId);
+    outgoingEdges.addClass('highlighted').style({
+        'line-color': '#00ff88',
+        'target-arrow-color': '#00ff88',
+        'width': 4,
+        'opacity': 1,
+        'target-arrow-shape': 'triangle'
+    });
+    
+    // Highlight incoming edges (to this node) in cyan
+    const incomingEdges = connectedEdges.filter(edge => edge.data('target') === nodeId);
+    incomingEdges.addClass('highlighted').style({
+        'line-color': '#00d4ff',
+        'target-arrow-color': '#00d4ff',
+        'width': 4,
+        'opacity': 1,
+        'target-arrow-shape': 'triangle'
+    });
+    
+    // Animate the node
+    node.animate({
+        style: { 'border-width': 6, 'border-color': '#ffffff' }
+    }, { duration: 200 }).animate({
+        style: { 'border-width': 3, 'border-color': '#ffffff20' }
+    }, { duration: 200 });
+    
+    // Log the interaction
+    addEvent('path', `Node ${node.data('label') || nodeId}: ${outgoingEdges.length} outgoing, ${incomingEdges.length} incoming`);
+});
+
+// Click on background to reset edge highlighting
+cy.on('tap', function(evt) {
+    if (evt.target === cy) {
+        // Clicked on background - reset all edges
+        cy.edges().removeClass('highlighted').style({
+            'line-color': '#4a4a7f',
+            'target-arrow-color': '#4a4a7f',
+            'width': 2,
+            'opacity': 0.7
+        });
+    }
+});
 
 // Initialize
 connectWebSocket();

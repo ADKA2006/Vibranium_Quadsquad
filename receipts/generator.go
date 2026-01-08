@@ -120,9 +120,14 @@ func (g *Generator) GeneratePDF(txn *payments.Transaction) ([]byte, error) {
 
 	pdf.SetXY(15, startY+37)
 	pdf.SetFont("Helvetica", "B", 11)
-	pdf.Cell(40, 8, "Hops:")
+	pdf.Cell(40, 8, "Nodes:")
 	pdf.SetFont("Helvetica", "", 11)
-	pdf.Cell(0, 8, fmt.Sprintf("%d countries", len(txn.Route)-1))
+	// Use actual hop results count if available for accuracy
+	nodeCount := len(txn.Route)
+	if len(txn.HopResults) > 0 {
+		nodeCount = len(txn.HopResults) + 1 // +1 for source node
+	}
+	pdf.Cell(0, 8, fmt.Sprintf("%d nodes processed (%d hops)", nodeCount, nodeCount-1))
 
 	pdf.Ln(55)
 

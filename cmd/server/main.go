@@ -248,10 +248,19 @@ func main() {
 	fs := http.FileServer(http.Dir("./frontend-next/out"))
 	mux.Handle("/", fs)
 
-	// Create server with CORS
+	// Create server with CORS and security middleware
+	// Security middleware chain: InputValidation -> SecurityHeaders -> CSRFMiddleware -> corsHandler
+	securityHandler := func(h http.Handler) http.Handler {
+		return middleware.InputValidation(
+			middleware.SecurityHeaders(
+				middleware.CSRFMiddleware(h),
+			),
+		)
+	}
+
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: corsHandler(mux),
+		Handler: securityHandler(corsHandler(mux)),
 	}
 
 	// Start server in goroutine

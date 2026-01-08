@@ -24,6 +24,18 @@ export default function RegisterPage() {
             return;
         }
 
+        // Validate username format: only letters, numbers, and underscores
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+            setError('Username can only contain letters, numbers, and underscores');
+            return;
+        }
+
+        if (username.length < 3 || username.length > 30) {
+            setError('Username must be between 3 and 30 characters');
+            return;
+        }
+
         if (password.length < 6) {
             setError('Password must be at least 6 characters');
             return;

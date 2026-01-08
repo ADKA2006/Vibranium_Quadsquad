@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 
 export default function LoginPage() {
@@ -12,6 +11,20 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const router = useRouter();
+
+    // Clear any cached data on login page load - prevent caching
+    useEffect(() => {
+        // Clear form fields
+        setEmail('');
+        setPassword('');
+        setError('');
+
+        // Clear any session storage related to login
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('loginAttempt');
+            sessionStorage.removeItem('lastEmail');
+        }
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,15 +51,16 @@ export default function LoginPage() {
                         <p className="text-slate-400 mt-2">Access your dashboard</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                         <div>
                             <label className="block text-sm text-slate-400 mb-2">Email</label>
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="admin@plm.local"
+                                placeholder="your@email.com"
                                 required
+                                autoComplete="off"
                                 className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                             />
                         </div>
@@ -59,6 +73,7 @@ export default function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Enter password"
                                 required
+                                autoComplete="off"
                                 className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                             />
                         </div>
@@ -77,29 +92,6 @@ export default function LoginPage() {
                             {isLoading ? 'Logging in...' : 'Login'}
                         </button>
                     </form>
-
-                    <div className="mt-8 pt-6 border-t border-white/10">
-                        <p className="text-xs text-slate-500 mb-3">Demo accounts:</p>
-                        <div className="space-y-1 text-sm">
-                            <p className="text-slate-400">
-                                <code className="bg-black/30 px-2 py-0.5 rounded">admin@plm.local</code> / <code className="bg-black/30 px-2 py-0.5 rounded">admin123</code>
-                                <span className="text-red-400 ml-2">(Admin)</span>
-                            </p>
-                            <p className="text-slate-400">
-                                <code className="bg-black/30 px-2 py-0.5 rounded">user@plm.local</code> / <code className="bg-black/30 px-2 py-0.5 rounded">user123</code>
-                                <span className="text-cyan-400 ml-2">(User)</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 text-center">
-                        <p className="text-slate-400 text-sm">
-                            Don&apos;t have an account?{' '}
-                            <Link href="/register" className="text-emerald-400 hover:underline">
-                                Register
-                            </Link>
-                        </p>
-                    </div>
                 </div>
             </div>
         </div>

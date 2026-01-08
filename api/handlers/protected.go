@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -541,6 +542,18 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if len(req.Password) < 6 {
 		http.Error(w, `{"error":"password must be at least 6 characters"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate username format: only letters, numbers, and underscores
+	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	if !usernameRegex.MatchString(req.Username) {
+		http.Error(w, `{"error":"username can only contain letters, numbers, and underscores"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Username) < 3 || len(req.Username) > 30 {
+		http.Error(w, `{"error":"username must be between 3 and 30 characters"}`, http.StatusBadRequest)
 		return
 	}
 

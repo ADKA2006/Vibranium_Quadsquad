@@ -151,29 +151,63 @@ func BuildCountryGraphFromNeo4j(ctx context.Context, driver neo4j.DriverWithCont
 func BuildCountryGraphWithDefaults() *CountryGraph {
 	graph := NewCountryGraph()
 
-	// Default countries with sample data
+	// Default countries with sample data - Complete list matching frontend
 	defaultCountries := []CountryData{
+		// Major economies
 		{Code: "USA", Name: "United States", Currency: "USD", Credibility: 0.98, SuccessRate: 0.99, FXRate: 1.0},
-		{Code: "GBR", Name: "United Kingdom", Currency: "GBP", Credibility: 0.95, SuccessRate: 0.97, FXRate: 0.79},
+		{Code: "CHN", Name: "China", Currency: "CNY", Credibility: 0.88, SuccessRate: 0.92, FXRate: 7.24},
 		{Code: "DEU", Name: "Germany", Currency: "EUR", Credibility: 0.96, SuccessRate: 0.98, FXRate: 0.92},
 		{Code: "JPN", Name: "Japan", Currency: "JPY", Credibility: 0.94, SuccessRate: 0.96, FXRate: 149.50},
-		{Code: "CHN", Name: "China", Currency: "CNY", Credibility: 0.88, SuccessRate: 0.92, FXRate: 7.24},
 		{Code: "IND", Name: "India", Currency: "INR", Credibility: 0.85, SuccessRate: 0.90, FXRate: 83.12},
-		{Code: "CAN", Name: "Canada", Currency: "CAD", Credibility: 0.93, SuccessRate: 0.96, FXRate: 1.36},
-		{Code: "AUS", Name: "Australia", Currency: "AUD", Credibility: 0.92, SuccessRate: 0.95, FXRate: 1.55},
-		{Code: "BRA", Name: "Brazil", Currency: "BRL", Credibility: 0.80, SuccessRate: 0.85, FXRate: 4.97},
-		{Code: "MEX", Name: "Mexico", Currency: "MXN", Credibility: 0.78, SuccessRate: 0.84, FXRate: 17.15},
-		{Code: "SGP", Name: "Singapore", Currency: "SGD", Credibility: 0.97, SuccessRate: 0.98, FXRate: 1.34},
-		{Code: "CHE", Name: "Switzerland", Currency: "CHF", Credibility: 0.99, SuccessRate: 0.99, FXRate: 0.88},
-		{Code: "KOR", Name: "South Korea", Currency: "KRW", Credibility: 0.91, SuccessRate: 0.94, FXRate: 1320.50},
-		{Code: "HKG", Name: "Hong Kong", Currency: "HKD", Credibility: 0.93, SuccessRate: 0.96, FXRate: 7.82},
+		{Code: "GBR", Name: "United Kingdom", Currency: "GBP", Credibility: 0.95, SuccessRate: 0.97, FXRate: 0.79},
 		{Code: "FRA", Name: "France", Currency: "EUR", Credibility: 0.94, SuccessRate: 0.96, FXRate: 0.92},
 		{Code: "ITA", Name: "Italy", Currency: "EUR", Credibility: 0.90, SuccessRate: 0.93, FXRate: 0.92},
+		{Code: "BRA", Name: "Brazil", Currency: "BRL", Credibility: 0.80, SuccessRate: 0.85, FXRate: 4.97},
+		{Code: "CAN", Name: "Canada", Currency: "CAD", Credibility: 0.93, SuccessRate: 0.96, FXRate: 1.36},
+		// 11-20
+		{Code: "RUS", Name: "Russia", Currency: "RUB", Credibility: 0.72, SuccessRate: 0.80, FXRate: 90.50},
+		{Code: "KOR", Name: "South Korea", Currency: "KRW", Credibility: 0.91, SuccessRate: 0.94, FXRate: 1320.50},
+		{Code: "AUS", Name: "Australia", Currency: "AUD", Credibility: 0.92, SuccessRate: 0.95, FXRate: 1.55},
+		{Code: "MEX", Name: "Mexico", Currency: "MXN", Credibility: 0.78, SuccessRate: 0.84, FXRate: 17.15},
 		{Code: "ESP", Name: "Spain", Currency: "EUR", Credibility: 0.89, SuccessRate: 0.92, FXRate: 0.92},
+		{Code: "IDN", Name: "Indonesia", Currency: "IDR", Credibility: 0.76, SuccessRate: 0.82, FXRate: 15750.0},
 		{Code: "NLD", Name: "Netherlands", Currency: "EUR", Credibility: 0.95, SuccessRate: 0.97, FXRate: 0.92},
-		{Code: "TUR", Name: "Turkey", Currency: "TRY", Credibility: 0.70, SuccessRate: 0.78, FXRate: 32.15},
-		{Code: "ARE", Name: "UAE", Currency: "AED", Credibility: 0.92, SuccessRate: 0.95, FXRate: 3.67},
 		{Code: "SAU", Name: "Saudi Arabia", Currency: "SAR", Credibility: 0.90, SuccessRate: 0.93, FXRate: 3.75},
+		{Code: "TUR", Name: "Turkey", Currency: "TRY", Credibility: 0.70, SuccessRate: 0.78, FXRate: 32.15},
+		{Code: "CHE", Name: "Switzerland", Currency: "CHF", Credibility: 0.99, SuccessRate: 0.99, FXRate: 0.88},
+		// 21-30
+		{Code: "POL", Name: "Poland", Currency: "PLN", Credibility: 0.86, SuccessRate: 0.90, FXRate: 3.95},
+		{Code: "TWN", Name: "Taiwan", Currency: "TWD", Credibility: 0.89, SuccessRate: 0.93, FXRate: 31.50},
+		{Code: "BEL", Name: "Belgium", Currency: "EUR", Credibility: 0.93, SuccessRate: 0.96, FXRate: 0.92},
+		{Code: "SWE", Name: "Sweden", Currency: "SEK", Credibility: 0.94, SuccessRate: 0.96, FXRate: 10.45},
+		{Code: "IRL", Name: "Ireland", Currency: "EUR", Credibility: 0.93, SuccessRate: 0.96, FXRate: 0.92},
+		{Code: "AUT", Name: "Austria", Currency: "EUR", Credibility: 0.94, SuccessRate: 0.96, FXRate: 0.92},
+		{Code: "THA", Name: "Thailand", Currency: "THB", Credibility: 0.82, SuccessRate: 0.87, FXRate: 35.20},
+		{Code: "ISR", Name: "Israel", Currency: "ILS", Credibility: 0.88, SuccessRate: 0.92, FXRate: 3.70},
+		{Code: "NGA", Name: "Nigeria", Currency: "NGN", Credibility: 0.65, SuccessRate: 0.72, FXRate: 1550.0},
+		{Code: "ARE", Name: "UAE", Currency: "AED", Credibility: 0.92, SuccessRate: 0.95, FXRate: 3.67},
+		// 31-40
+		{Code: "ARG", Name: "Argentina", Currency: "ARS", Credibility: 0.60, SuccessRate: 0.68, FXRate: 875.0},
+		{Code: "NOR", Name: "Norway", Currency: "NOK", Credibility: 0.95, SuccessRate: 0.97, FXRate: 10.65},
+		{Code: "EGY", Name: "Egypt", Currency: "EGP", Credibility: 0.68, SuccessRate: 0.75, FXRate: 30.90},
+		{Code: "VNM", Name: "Vietnam", Currency: "VND", Credibility: 0.75, SuccessRate: 0.81, FXRate: 24500.0},
+		{Code: "BGD", Name: "Bangladesh", Currency: "BDT", Credibility: 0.70, SuccessRate: 0.77, FXRate: 110.50},
+		{Code: "ZAF", Name: "South Africa", Currency: "ZAR", Credibility: 0.74, SuccessRate: 0.80, FXRate: 18.75},
+		{Code: "PHL", Name: "Philippines", Currency: "PHP", Credibility: 0.77, SuccessRate: 0.83, FXRate: 56.25},
+		{Code: "DNK", Name: "Denmark", Currency: "DKK", Credibility: 0.94, SuccessRate: 0.96, FXRate: 6.85},
+		{Code: "MYS", Name: "Malaysia", Currency: "MYR", Credibility: 0.84, SuccessRate: 0.89, FXRate: 4.70},
+		{Code: "SGP", Name: "Singapore", Currency: "SGD", Credibility: 0.97, SuccessRate: 0.98, FXRate: 1.34},
+		// 41-51
+		{Code: "HKG", Name: "Hong Kong", Currency: "HKD", Credibility: 0.93, SuccessRate: 0.96, FXRate: 7.82},
+		{Code: "PAK", Name: "Pakistan", Currency: "PKR", Credibility: 0.62, SuccessRate: 0.70, FXRate: 285.0},
+		{Code: "CHL", Name: "Chile", Currency: "CLP", Credibility: 0.82, SuccessRate: 0.87, FXRate: 885.0},
+		{Code: "COL", Name: "Colombia", Currency: "COP", Credibility: 0.78, SuccessRate: 0.84, FXRate: 4050.0},
+		{Code: "FIN", Name: "Finland", Currency: "EUR", Credibility: 0.95, SuccessRate: 0.97, FXRate: 0.92},
+		{Code: "CZE", Name: "Czech Republic", Currency: "CZK", Credibility: 0.88, SuccessRate: 0.92, FXRate: 22.75},
+		{Code: "ROU", Name: "Romania", Currency: "RON", Credibility: 0.80, SuccessRate: 0.86, FXRate: 4.56},
+		{Code: "PRT", Name: "Portugal", Currency: "EUR", Credibility: 0.88, SuccessRate: 0.92, FXRate: 0.92},
+		{Code: "NZL", Name: "New Zealand", Currency: "NZD", Credibility: 0.91, SuccessRate: 0.94, FXRate: 1.68},
+		{Code: "PER", Name: "Peru", Currency: "PEN", Credibility: 0.76, SuccessRate: 0.82, FXRate: 3.75},
 	}
 
 	for _, c := range defaultCountries {

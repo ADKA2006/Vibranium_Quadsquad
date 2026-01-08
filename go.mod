@@ -1,6 +1,6 @@
 module github.com/plm/predictive-liquidity-mesh
 
-go 1.21
+go 1.23
 
 require (
 	github.com/gammazero/workerpool v1.1.3

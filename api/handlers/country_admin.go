@@ -186,15 +186,110 @@ func (h *CountryHandler) HandleCreateCountry(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	log.Printf("✅ Admin %s created country: %s (%s)", user.Username, req.Code, req.Name)
+	// Create edge connections to regional neighbors (minimum 3 edges)
+	// Get regional connections based on the new country
+	regionEdges := getRegionalConnections(strings.ToUpper(req.Code))
+	edgesCreated := 0
+	for _, targetCode := range regionEdges {
+		edgeQuery := `
+			MATCH (a:Country {code: $source})
+			MATCH (b:Country {code: $target})
+			MERGE (a)-[r:TRADE]->(b)
+			ON CREATE SET r.base_cost = 0.01, r.active = true, r.created_at = datetime()
+			MERGE (b)-[r2:TRADE]->(a)
+			ON CREATE SET r2.base_cost = 0.01, r2.active = true, r2.created_at = datetime()
+			RETURN count(*) as created
+		`
+		_, edgeErr := session.Run(ctx, edgeQuery, map[string]interface{}{
+			"source": strings.ToUpper(req.Code),
+			"target": targetCode,
+		})
+		if edgeErr == nil {
+			edgesCreated++
+		}
+	}
+
+	log.Printf("✅ Admin %s created country: %s (%s) with %d edge connections", user.Username, req.Code, req.Name, edgesCreated)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"code":    strings.ToUpper(req.Code),
-		"message": "Country created successfully",
+		"success":       true,
+		"code":          strings.ToUpper(req.Code),
+		"message":       "Country created successfully",
+		"edges_created": edgesCreated,
 	})
+}
+
+// getRegionalConnections returns a list of country codes to connect to based on regional proximity
+func getRegionalConnections(code string) []string {
+	// Regional groupings for automatic edge creation
+	regionalHubs := map[string][]string{
+		// Americas
+		"USA": {"CAN", "MEX", "GBR"},
+		"CAN": {"USA", "MEX", "GBR"},
+		"MEX": {"USA", "BRA", "COL"},
+		"BRA": {"ARG", "MEX", "USA"},
+		"ARG": {"BRA", "CHL", "MEX"},
+		"CHL": {"ARG", "PER", "BRA"},
+		"COL": {"MEX", "BRA", "PER"},
+		"PER": {"CHL", "COL", "BRA"},
+		// Europe
+		"GBR": {"USA", "DEU", "FRA"},
+		"DEU": {"FRA", "GBR", "NLD"},
+		"FRA": {"DEU", "GBR", "ESP"},
+		"ITA": {"FRA", "DEU", "CHE"},
+		"ESP": {"FRA", "PRT", "ITA"},
+		"NLD": {"DEU", "BEL", "GBR"},
+		"BEL": {"NLD", "FRA", "DEU"},
+		"CHE": {"DEU", "FRA", "ITA"},
+		"AUT": {"DEU", "CHE", "ITA"},
+		"POL": {"DEU", "CZE", "ROU"},
+		"CZE": {"DEU", "POL", "AUT"},
+		"ROU": {"POL", "TUR", "DEU"},
+		"PRT": {"ESP", "FRA", "GBR"},
+		"SWE": {"NOR", "DNK", "FIN"},
+		"NOR": {"SWE", "DNK", "GBR"},
+		"DNK": {"SWE", "NOR", "DEU"},
+		"FIN": {"SWE", "RUS", "NOR"},
+		"IRL": {"GBR", "USA", "FRA"},
+		// Asia
+		"CHN": {"JPN", "KOR", "HKG"},
+		"JPN": {"CHN", "KOR", "USA"},
+		"KOR": {"JPN", "CHN", "TWN"},
+		"IND": {"ARE", "SGP", "GBR"},
+		"SGP": {"MYS", "HKG", "AUS"},
+		"HKG": {"CHN", "SGP", "JPN"},
+		"TWN": {"KOR", "JPN", "CHN"},
+		"THA": {"SGP", "MYS", "VNM"},
+		"MYS": {"SGP", "THA", "IDN"},
+		"IDN": {"SGP", "MYS", "AUS"},
+		"VNM": {"THA", "CHN", "SGP"},
+		"PHL": {"SGP", "JPN", "HKG"},
+		// Middle East
+		"ARE": {"SAU", "IND", "GBR"},
+		"SAU": {"ARE", "EGY", "IND"},
+		"ISR": {"USA", "GBR", "TUR"},
+		"TUR": {"DEU", "ROU", "ARE"},
+		"EGY": {"SAU", "ZAF", "TUR"},
+		// Africa
+		"ZAF": {"NGA", "EGY", "GBR"},
+		"NGA": {"ZAF", "EGY", "GBR"},
+		// Oceania
+		"AUS": {"NZL", "SGP", "JPN"},
+		"NZL": {"AUS", "SGP", "USA"},
+		// Other
+		"RUS": {"CHN", "DEU", "FIN"},
+		"PAK": {"IND", "ARE", "CHN"},
+		"BGD": {"IND", "THA", "SGP"},
+	}
+
+	if connections, ok := regionalHubs[code]; ok {
+		return connections
+	}
+
+	// Default: connect to major financial hubs
+	return []string{"USA", "GBR", "SGP"}
 }
 
 // HandleDeleteCountry handles DELETE /api/v1/admin/countries/{code}
@@ -228,7 +323,7 @@ func (h *CountryHandler) HandleDeleteCountry(w http.ResponseWriter, r *http.Requ
 
 	query := `
 		MATCH (c:Country {code: $code})
-		DELETE c
+		DETACH DELETE c
 		RETURN count(c) as deleted
 	`
 

@@ -66,7 +66,7 @@ System Architecture
 
 
 <div align="center">
-  <img src="assests/images/System ArchitecturB2B.jpg" 
+  <img src="assests/images/System ArchitecturB2B.jpeg" 
        alt="OmniMesh System Architecture Diagram" 
        style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #30363d;">
   <p align="center">

@@ -3,7 +3,11 @@
 package users
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -60,6 +64,28 @@ type Store struct {
 	byName   map[string]string      // username -> ID
 }
 
+// generateSecurePassword creates a cryptographically secure random password
+func generateSecurePassword(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback should never happen, but handle gracefully
+		log.Fatal("CRITICAL: Failed to generate secure random password")
+	}
+	return base64.URLEncoding.EncodeToString(bytes)[:length]
+}
+
+// getPasswordFromEnv retrieves password from environment variable or generates a secure one
+func getPasswordFromEnv(envVar, userType string) string {
+	if password := os.Getenv(envVar); password != "" {
+		return password
+	}
+	// Generate a secure random password if not provided
+	generatedPassword := generateSecurePassword(32)
+	log.Printf("WARNING: %s not set. Generated secure password for %s: %s", envVar, userType, generatedPassword)
+	log.Printf("IMPORTANT: Set %s environment variable in production!", envVar)
+	return generatedPassword
+}
+
 // NewStore creates a new user store with default admin user
 func NewStore() *Store {
 	store := &Store{
@@ -68,8 +94,12 @@ func NewStore() *Store {
 		byName:  make(map[string]string),
 	}
 
+	// Get passwords from environment variables (secure by default)
+	adminPassword := getPasswordFromEnv("ADMIN_PASSWORD", "admin@plm.local")
+	userPassword := getPasswordFromEnv("USER_PASSWORD", "user@plm.local")
+
 	// Create default admin user
-	adminHash, _ := auth.HashPassword("admin123")
+	adminHash, _ := auth.HashPassword(adminPassword)
 	adminUser := &StoredUser{
 		ID:           "admin-default-001",
 		Email:        "admin@plm.local",
@@ -85,7 +115,7 @@ func NewStore() *Store {
 	store.byName[adminUser.Username] = adminUser.ID
 
 	// Create default regular user
-	userHash, _ := auth.HashPassword("user123")
+	userHash, _ := auth.HashPassword(userPassword)
 	regularUser := &StoredUser{
 		ID:           "user-default-001",
 		Email:        "user@plm.local",

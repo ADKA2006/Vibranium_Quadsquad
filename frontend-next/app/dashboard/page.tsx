@@ -259,7 +259,7 @@ export default function Dashboard() {
                         <button
                             onClick={() => setSelectionMode(selectionMode === 'start' ? 'none' : 'start')}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectionMode === 'start' ? 'bg-green-500 text-white animate-pulse' :
-                                    startNode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-300'
+                                startNode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-300'
                                 }`}
                         >
                             {startNode ? `Start: ${startNode}` : '🟢 Select Start'}
@@ -267,7 +267,7 @@ export default function Dashboard() {
                         <button
                             onClick={() => setSelectionMode(selectionMode === 'end' ? 'none' : 'end')}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectionMode === 'end' ? 'bg-red-500 text-white animate-pulse' :
-                                    endNode ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-slate-700 text-slate-300'
+                                endNode ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-slate-700 text-slate-300'
                                 }`}
                         >
                             {endNode ? `End: ${endNode}` : '🔴 Select End'}
@@ -455,8 +455,8 @@ export default function Dashboard() {
                                         key={index}
                                         onClick={() => setSelectedRouteIndex(index)}
                                         className={`w-full text-left p-3 rounded-xl border transition-all ${selectedRouteIndex === index
-                                                ? 'bg-emerald-500/20 border-emerald-500/50'
-                                                : 'bg-slate-800/50 border-white/10 hover:border-white/30'
+                                            ? 'bg-emerald-500/20 border-emerald-500/50'
+                                            : 'bg-slate-800/50 border-white/10 hover:border-white/30'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between mb-2">
@@ -485,6 +485,16 @@ export default function Dashboard() {
                                     </button>
                                 ))}
                             </div>
+                        )}
+
+                        {/* PAY NOW Button */}
+                        {routes.length > 0 && (
+                            <Link
+                                href={`/pay?route=${routes[selectedRouteIndex]?.nodes.join(',')}`}
+                                className="block w-full py-4 text-center bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity mt-4 shadow-lg shadow-emerald-500/20"
+                            >
+                                💳 PAY NOW
+                            </Link>
                         )}
                     </div>
 

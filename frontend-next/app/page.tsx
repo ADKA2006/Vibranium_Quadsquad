@@ -82,51 +82,102 @@ export default function Home() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Mesh Visualization Placeholder */}
+          {/* Payment Analytics - Role Based */}
           <div className="lg:col-span-2 bg-slate-800/50 rounded-2xl border border-white/10 p-6 min-h-[500px]">
-            <h2 className="text-lg font-semibold text-slate-200 mb-4">Network Mesh</h2>
-            <div className="flex items-center justify-center h-[400px] text-slate-500">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🕸️</div>
-                <p>Cytoscape.js visualization will render here</p>
-                <p className="text-sm mt-2">Connect to see real-time node updates</p>
+            {!user ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🔐</div>
+                  <h2 className="text-xl font-semibold text-white mb-2">Welcome to PLM</h2>
+                  <p className="text-slate-400 mb-6">Login to access payment analytics and transaction features</p>
+                  <Link href="/login" className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white rounded-lg font-semibold">
+                    Get Started
+                  </Link>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Stats Panel */}
-            <div className="bg-slate-800/50 rounded-2xl border border-white/10 p-6">
-              <h3 className="text-xs uppercase tracking-wider text-slate-500 mb-4">Network Stats</h3>
-              <div className="space-y-4">
-                <StatItem label="Transactions/sec" value="0" status="success" />
-                <StatItem label="Avg Latency" value="0ms" status="normal" />
-                <StatItem label="Active Paths" value="0" status="normal" />
-                <StatItem label="Circuit Breakers Open" value="0" status="normal" />
+            ) : isAdmin ? (
+              <div>
+                <h2 className="text-lg font-semibold text-slate-200 mb-4">📊 Admin Analytics</h2>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 rounded-xl p-4 border border-emerald-500/30">
+                    <div className="text-emerald-400 text-sm mb-1">💰 Platform Revenue</div>
+                    <div className="text-2xl font-bold text-white">View Dashboard</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 rounded-xl p-4 border border-purple-500/30">
+                    <div className="text-purple-400 text-sm mb-1">📈 All Transactions</div>
+                    <div className="text-2xl font-bold text-white">Access Full Data</div>
+                  </div>
+                </div>
+                <Link
+                  href="/admin/analytics"
+                  className="block w-full py-4 text-center bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  📊 Open Admin Analytics Dashboard
+                </Link>
               </div>
-            </div>
-
-            {/* User Panel - Available to all logged in users */}
-            {user && (
-              <div className="bg-slate-800/50 rounded-2xl border border-white/10 p-6">
-                <h3 className="text-xs uppercase tracking-wider text-slate-500 mb-4">🌐 Explore</h3>
+            ) : (
+              <div>
+                <h2 className="text-lg font-semibold text-slate-200 mb-4">💳 Your Payment Analytics</h2>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 rounded-xl p-4 border border-emerald-500/30">
+                    <div className="text-emerald-400 text-sm mb-1">📤 Send Payments</div>
+                    <div className="text-sm text-slate-300">Transfer across countries</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl p-4 border border-blue-500/30">
+                    <div className="text-blue-400 text-sm mb-1">📋 Transaction History</div>
+                    <div className="text-sm text-slate-300">View all your payments</div>
+                  </div>
+                </div>
                 <div className="space-y-3">
                   <Link
                     href="/dashboard"
-                    className="block w-full py-3 text-center bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/30"
+                    className="block w-full py-4 text-center bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity"
                   >
-                    🌐 3D Globe Dashboard
+                    🌐 Open Payment Dashboard
                   </Link>
                   <Link
-                    href="/graph"
-                    className="block w-full py-3 text-center bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                    href="/transactions"
+                    className="block w-full py-3 text-center bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-colors"
                   >
-                    🔗 FX Rate Network
+                    📋 View Transaction History
                   </Link>
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Links Panel */}
+            <div className="bg-slate-800/50 rounded-2xl border border-white/10 p-6">
+              <h3 className="text-xs uppercase tracking-wider text-slate-500 mb-4">Quick Actions</h3>
+              <div className="space-y-4">
+                {user ? (
+                  <>
+                    <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                      <span className="text-xl">🌐</span>
+                      <div>
+                        <div className="text-white font-medium">Globe Dashboard</div>
+                        <div className="text-xs text-slate-400">Select routes & pay</div>
+                      </div>
+                    </Link>
+                    {!isAdmin && (
+                      <Link href="/pay" className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors border border-emerald-500/30">
+                        <span className="text-xl">💳</span>
+                        <div>
+                          <div className="text-emerald-400 font-medium">Make Payment</div>
+                          <div className="text-xs text-slate-400">Transfer funds now</div>
+                        </div>
+                      </Link>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-slate-500">
+                    <p>Login to access features</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Admin Panel - Admin only */}
             {isAdmin && (

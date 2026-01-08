@@ -67,16 +67,16 @@ export default function AdminPage() {
                         </div>
                     </Link>
 
-                    {/* FX Rate Network */}
+                    {/* Analytics Dashboard */}
                     <Link
-                        href="/graph"
-                        className="bg-slate-800/50 rounded-2xl border border-white/10 p-6 hover:border-blue-500/50 transition-colors group"
+                        href="/admin/analytics"
+                        className="bg-gradient-to-br from-purple-500/20 to-red-500/20 rounded-2xl border border-purple-500/30 p-6 hover:border-purple-500/60 transition-colors group"
                     >
-                        <div className="text-4xl mb-4">🔗</div>
-                        <h2 className="text-lg font-semibold text-white mb-2">FX Rate Network</h2>
-                        <p className="text-slate-400 text-sm">View the network graph showing trade connections between countries.</p>
-                        <div className="mt-4 text-blue-400 text-sm group-hover:translate-x-1 transition-transform">
-                            View Network →
+                        <div className="text-4xl mb-4">📊</div>
+                        <h2 className="text-lg font-semibold text-white mb-2">Analytics Dashboard</h2>
+                        <p className="text-slate-400 text-sm">View platform revenue, all transactions, success rates, and charts.</p>
+                        <div className="mt-4 text-purple-400 text-sm group-hover:translate-x-1 transition-transform">
+                            View Analytics →
                         </div>
                     </Link>
 

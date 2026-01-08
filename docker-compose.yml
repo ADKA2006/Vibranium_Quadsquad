@@ -52,8 +52,24 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+  # NATS JetStream for async messaging
+  nats:
+    image: nats:2.10-alpine
+    container_name: plm_nats
+    command: ["--jetstream", "--store_dir=/data", "-m", "8222"]
+    ports:
+      - "4222:4222"  # Client
+      - "8222:8222"  # Monitoring
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
   redis_data:
   neo4j_data:
+  nats_data:

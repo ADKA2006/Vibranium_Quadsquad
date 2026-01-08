@@ -27,6 +27,7 @@ DECLARE
     random_part TEXT;
     encoding TEXT := '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
     i INT;
+    idx INT;
 BEGIN
     -- Get current timestamp in milliseconds
     timestamp_ms := (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT;
@@ -34,13 +35,15 @@ BEGIN
     -- Generate 10-character timestamp encoding (48 bits)
     timestamp_part := '';
     FOR i IN REVERSE 9..0 LOOP
-        timestamp_part := timestamp_part || substring(encoding from ((timestamp_ms >> (i * 5)) & 31) + 1 for 1);
+        idx := ((timestamp_ms >> (i * 5)) & 31)::INT + 1;
+        timestamp_part := timestamp_part || substring(encoding, idx, 1);
     END LOOP;
     
     -- Generate 16-character random encoding (80 bits)
     random_part := '';
     FOR i IN 1..16 LOOP
-        random_part := random_part || substring(encoding from (floor(random() * 32)::INT) + 1 for 1);
+        idx := (floor(random() * 32)::INT) + 1;
+        random_part := random_part || substring(encoding, idx, 1);
     END LOOP;
     
     RETURN timestamp_part || random_part;

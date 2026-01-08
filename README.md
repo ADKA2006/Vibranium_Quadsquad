@@ -107,28 +107,6 @@ project-root/
 - Docker 20+ & Docker Compose v2
 - 4GB RAM minimum
 
-### Run Locally
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/ADKA2006/Vibranium_Quadsquad_Unofficial.git
-cd Vibranium_Quadsquad_Unofficial
-
-# 2. Build and start all services
-cd infra
-docker compose up --build
-
-# 3. Access the application
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:8080
-```
-
-### Stop Services
-```bash
-cd infra
-docker compose down
-```
-
 ---
 
 ## 🔗 Service Endpoints
@@ -139,92 +117,6 @@ docker compose down
 | **Backend API** | http://localhost:8080 | Go REST API |
 | **Neo4j Browser** | http://localhost:7474 | Graph Database UI |
 
-### Default Credentials
-- **User:** `user@plm.local` / `user123`
-- **Admin:** `admin@plm.local` / `admin123`
-
----
-
-## 🐳 Docker Hub Deployment
-
-### Build Images
-```bash
-# From project root
-docker build -t <dockerhub-username>/plm-backend:latest .
-docker build -t <dockerhub-username>/plm-frontend:latest ./frontend-next
-```
-
-### Push to Docker Hub
-```bash
-docker login
-docker push <dockerhub-username>/plm-backend:latest
-docker push <dockerhub-username>/plm-frontend:latest
-```
-
-### Pull and Run on Another Machine
-```bash
-docker pull <dockerhub-username>/plm-backend:latest
-docker pull <dockerhub-username>/plm-frontend:latest
-
-# Then use infra/docker-compose.yml
-cd infra
-docker compose up -d
-```
-
----
-
-## 🌍 Ngrok Deployment (Fallback)
-
-If cloud deployment fails, use Ngrok to expose local services:
-
-### 1. Install Ngrok
-```bash
-# Download from https://ngrok.com/download
-# Or via snap:
-snap install ngrok
-```
-
-### 2. Authenticate
-```bash
-ngrok config add-authtoken <your-auth-token>
-```
-
-### 3. Start Services Locally
-```bash
-cd infra
-docker compose up --build
-```
-
-### 4. Expose with Ngrok
-```bash
-# Terminal 1: Expose Frontend
-ngrok http 3000
-
-# Terminal 2: Expose Backend (if needed)
-ngrok http 8080
-```
-
-### 5. Public URLs
-After running Ngrok, you'll get URLs like:
-- Frontend: `https://abc123.ngrok.io`
-- Backend: `https://xyz789.ngrok.io`
-
-**⚠️ Note:** Don't restart Ngrok as URLs will change.
-
----
-
-## 🔧 Environment Variables
-
-Copy `.env.example` to `.env`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `TOKEN_SECRET` | JWT signing key (32 chars) | Dev default |
-| `NEO4J_PASSWORD` | Neo4j database password | `password` |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` |
-| `STRIPE_SECRET_KEY` | Stripe API key | Mock mode |
-
----
 
 ## 🛡️ Key Features
 
@@ -236,13 +128,8 @@ Copy `.env.example` to `.env`:
 
 ---
 
-## 📚 Documentation
-
-- [ABOUT.md](./ABOUT.md) - Architecture & deployment details
-- [WALKTHROUGH.md](./WALKTHROUGH.md) - Feature implementation log
-
 ---
-## 🚀 One-Command Deployment (For Third Parties)
+## One-Command Deployment
 
 ### Prerequisites
 - Docker & Docker Compose installed
@@ -250,7 +137,7 @@ Copy `.env.example` to `.env`:
 ### Quick Start
 ```bash
 # Download the docker-compose file
-curl -O https://raw.githubusercontent.com/ADKA2006/Vibranium_Quadsquad_Unofficial/main/docker-compose.hub.yml
+curl -O https://raw.githubusercontent.com/ADKA2006/Vibranium_Quadsquad/main/docker-compose.hub.yml
 
 # Start everything with one command
 docker compose -f docker-compose.hub.yml up -d

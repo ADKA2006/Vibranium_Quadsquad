@@ -239,14 +239,29 @@ func main() {
 		authMiddleware.RequireAdmin,
 	)(http.HandlerFunc(paymentHandler.HandleAdminStats)))
 
-	// Debug/Chaos endpoints
-	mux.HandleFunc("/debug/kill/", chaosHandler.HandleKillNode)
-	mux.HandleFunc("/debug/revive/", chaosHandler.HandleReviveNode)
-	mux.HandleFunc("/debug/killed", chaosHandler.HandleGetKilledNodes)
+	// Debug/Chaos endpoints (admin only)
+	mux.Handle("/debug/kill/", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(chaosHandler.HandleKillNode)))
+	mux.Handle("/debug/revive/", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(chaosHandler.HandleReviveNode)))
+	mux.Handle("/debug/killed", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(chaosHandler.HandleGetKilledNodes)))
 
-	// Demo endpoints
-	mux.HandleFunc("/demo/attack", chaosDemo.HandleAttackDemo)
-	mux.HandleFunc("/demo/reset", chaosDemo.HandleResetDemo)
+	// Demo endpoints (admin only)
+	mux.Handle("/demo/attack", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(chaosDemo.HandleAttackDemo)))
+	mux.Handle("/demo/reset", middleware.Chain(
+		authMiddleware.Authenticate,
+		authMiddleware.RequireAdmin,
+	)(http.HandlerFunc(chaosDemo.HandleResetDemo)))
 
 	// Static files for frontend (now points to Next.js build output)
 	fs := http.FileServer(http.Dir("./frontend-next/out"))

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"log"
 	"os"
 	"time"
 
@@ -54,12 +53,15 @@ type TokenConfig struct {
 	TokenTTL     time.Duration
 }
 
-// DefaultTokenConfig returns config from environment or development defaults
-func DefaultTokenConfig() *TokenConfig {
+// DefaultTokenConfig returns config from environment or development defaults.
+// Note: SymmetricKey must be provided via TOKEN_SECRET environment variable.
+func DefaultTokenConfig() (*TokenConfig, error) {
 	symmetricKey := os.Getenv("TOKEN_SECRET")
-	if symmetricKey == "" || len(symmetricKey) != 32 {
-		log.Println("⚠️  SECURITY WARNING: TOKEN_SECRET not set or invalid length - using insecure default (DEV ONLY)")
-		symmetricKey = "plm-dev-token-key-NOT-FOR-PROD-!" // Exactly 32 bytes
+	if symmetricKey == "" {
+		return nil, errors.New("security error: TOKEN_SECRET environment variable is not set")
+	}
+	if len(symmetricKey) != 32 {
+		return nil, errors.New("security error: TOKEN_SECRET must be exactly 32 bytes long")
 	}
 	
 	issuer := os.Getenv("TOKEN_ISSUER")
@@ -79,13 +81,17 @@ func DefaultTokenConfig() *TokenConfig {
 		SymmetricKey: symmetricKey,
 		Issuer:       issuer,
 		TokenTTL:     ttl,
-	}
+	}, nil
 }
 
 // NewTokenManager creates a new PASETO token manager
 func NewTokenManager(cfg *TokenConfig) (*TokenManager, error) {
 	if cfg == nil {
-		cfg = DefaultTokenConfig()
+		var err error
+		cfg, err = DefaultTokenConfig()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	key := []byte(cfg.SymmetricKey)

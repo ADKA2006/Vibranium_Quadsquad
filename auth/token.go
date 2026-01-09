@@ -25,15 +25,30 @@ type TokenClaims struct {
 	Username  string    `json:"username"`
 	Role      Role      `json:"role"`
 	IssuedAt  time.Time `json:"iat"`
+	NotBefore time.Time `json:"nbf"` // Token not valid before this time
 	ExpiresAt time.Time `json:"exp"`
 	Issuer    string    `json:"iss"`
 }
 
-// Valid checks if the token claims are valid
+// Valid checks if the token claims are valid with comprehensive validation
 func (c *TokenClaims) Valid() error {
-	if time.Now().After(c.ExpiresAt) {
+	now := time.Now()
+	
+	// Check expiry
+	if now.After(c.ExpiresAt) {
 		return ErrExpiredToken
 	}
+	
+	// Check NotBefore (token not yet valid)
+	if !c.NotBefore.IsZero() && now.Before(c.NotBefore) {
+		return errors.New("token not yet valid")
+	}
+	
+	// Check IssuedAt is not in the future (with 1 minute clock skew tolerance)
+	if c.IssuedAt.After(now.Add(1 * time.Minute)) {
+		return errors.New("token issued in the future")
+	}
+	
 	return nil
 }
 
@@ -124,6 +139,7 @@ func (tm *TokenManager) GenerateToken(user *User) (string, *TokenClaims, error) 
 		Username:  user.Username,
 		Role:      user.Role,
 		IssuedAt:  now,
+		NotBefore: now, // Token valid immediately
 		ExpiresAt: now.Add(tm.tokenTTL),
 		Issuer:    tm.issuer,
 	}
@@ -146,8 +162,14 @@ func (tm *TokenManager) VerifyToken(token string) (*TokenClaims, error) {
 		return nil, ErrInvalidToken
 	}
 
+	// Validate time-based claims
 	if err := claims.Valid(); err != nil {
 		return nil, err
+	}
+
+	// Validate issuer matches our expected issuer
+	if claims.Issuer != tm.issuer {
+		return nil, errors.New("invalid token issuer")
 	}
 
 	return &claims, nil

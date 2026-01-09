@@ -4,8 +4,10 @@ package neo4j
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -134,14 +136,23 @@ type Path struct {
 
 // FindPaths finds paths between two nodes (for Yen's K-shortest paths algorithm input)
 func (c *Client) FindPaths(ctx context.Context, sourceID, targetID string, maxHops int) ([]Path, error) {
+	// Validate maxHops to prevent query manipulation (defense in depth)
+	if maxHops < 1 {
+		maxHops = 1
+	}
+	if maxHops > 10 {
+		maxHops = 10 // Cap at reasonable maximum to prevent DoS
+	}
+
 	session := c.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: c.database,
 		AccessMode:   neo4j.AccessModeRead,
 	})
 	defer session.Close(ctx)
 
-	query := `
-		MATCH path = (source {id: $sourceId})-[*1..` + fmt.Sprintf("%d", maxHops) + `]->(target {id: $targetId})
+	// Build query with validated integer (safe since we've bounds-checked maxHops)
+	query := fmt.Sprintf(`
+		MATCH path = (source {id: $sourceId})-[*1..%d]->(target {id: $targetId})
 		WHERE all(r IN relationships(path) WHERE r.is_active = true)
 		  AND all(n IN nodes(path) WHERE n.is_active = true)
 		RETURN path,
@@ -149,7 +160,7 @@ func (c *Client) FindPaths(ctx context.Context, sourceID, targetID string, maxHo
 		       reduce(lat = 0, r IN relationships(path) | lat + coalesce(r.latency, 0)) AS totalLatency
 		ORDER BY totalFee ASC, totalLatency ASC
 		LIMIT 10
-	`
+	`, maxHops)
 
 	result, err := session.Run(ctx, query, map[string]interface{}{
 		"sourceId": sourceID,
@@ -287,14 +298,36 @@ func (c *Client) SetNodeActive(ctx context.Context, nodeID string, isActive bool
 	return err
 }
 
+// allowedNodeLabels defines the whitelist of valid node types for CreateNode
+var allowedNodeLabels = map[string]bool{
+	"Country":           true,
+	"SME":               true,
+	"LiquidityProvider": true,
+	"Hub":               true,
+	"Node":              true,
+}
+
+// validLabelPattern ensures labels contain only safe characters
+var validLabelPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+
 // CreateNode creates a new node in Neo4j (for admin API)
 func (c *Client) CreateNode(ctx context.Context, nodeType string, props map[string]interface{}) error {
+	// Validate nodeType against allowlist to prevent Cypher injection
+	if !allowedNodeLabels[nodeType] {
+		return errors.New("invalid node type: must be one of Country, SME, LiquidityProvider, Hub, Node")
+	}
+	// Extra safety: validate label format (alphanumeric starting with letter)
+	if !validLabelPattern.MatchString(nodeType) {
+		return errors.New("invalid node type format")
+	}
+
 	session := c.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: c.database,
 		AccessMode:   neo4j.AccessModeWrite,
 	})
 	defer session.Close(ctx)
 
+	// nodeType is now validated, safe to use in query
 	query := fmt.Sprintf(`
 		CREATE (n:%s $props)
 		RETURN n

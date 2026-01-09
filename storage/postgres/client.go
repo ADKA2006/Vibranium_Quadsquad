@@ -69,12 +69,16 @@ func NewClient(ctx context.Context, cfg *Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Set synchronous_commit based on config
-	syncMode := "on"
-	if !cfg.SynchronousCommit {
-		syncMode = "off"
+	// Set synchronous_commit based on config (using explicit safe values, not string interpolation)
+	// Note: PostgreSQL SET commands don't support parameterized queries for values,
+	// so we use a whitelist approach with explicit validation
+	var setSyncQuery string
+	if cfg.SynchronousCommit {
+		setSyncQuery = "SET synchronous_commit = on"
+	} else {
+		setSyncQuery = "SET synchronous_commit = off"
 	}
-	_, err = db.ExecContext(ctx, fmt.Sprintf("SET synchronous_commit = %s", syncMode))
+	_, err = db.ExecContext(ctx, setSyncQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set synchronous_commit: %w", err)
 	}

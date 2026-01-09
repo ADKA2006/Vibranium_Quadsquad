@@ -41,7 +41,11 @@ func main() {
 	go wsHub.Run(ctx)
 
 	// Initialize PASETO token manager
-	tokenManager, err := auth.NewTokenManager(auth.DefaultTokenConfig())
+	tokenConfig, err := auth.DefaultTokenConfig()
+	if err != nil {
+		log.Fatalf("Failed to load token config: %v", err)
+	}
+	tokenManager, err := auth.NewTokenManager(tokenConfig)
 	if err != nil {
 		log.Fatalf("Failed to create token manager: %v", err)
 	}

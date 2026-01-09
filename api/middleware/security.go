@@ -19,6 +19,26 @@ var AllowedOrigins = []string{
 	"http://127.0.0.1:8080",
 }
 
+// IsOriginAllowed checks if the given origin is allowed based on AllowedOrigins or request host
+func IsOriginAllowed(origin string, requestHost string) bool {
+	if origin == "" {
+		return true // Allow if no origin is provided (same-site or non-browser client)
+	}
+
+	for _, ao := range AllowedOrigins {
+		if origin == ao {
+			return true
+		}
+	}
+
+	// Also allow if origin matches the request host
+	if strings.Contains(origin, requestHost) {
+		return true
+	}
+
+	return false
+}
+
 // CSRFMiddleware adds CSRF protection by validating Origin header
 func CSRFMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,25 +50,9 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 
 		// Check Origin header
 		origin := r.Header.Get("Origin")
-		if origin != "" {
-			allowed := false
-			for _, ao := range AllowedOrigins {
-				if origin == ao {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				// Also allow if origin matches the request host
-				host := r.Host
-				if strings.Contains(origin, host) {
-					allowed = true
-				}
-			}
-			if !allowed {
-				http.Error(w, `{"error":"CSRF validation failed: invalid origin"}`, http.StatusForbidden)
-				return
-			}
+		if !IsOriginAllowed(origin, r.Host) {
+			http.Error(w, `{"error":"CSRF validation failed: invalid origin"}`, http.StatusForbidden)
+			return
 		}
 
 		// Check Referer header as backup

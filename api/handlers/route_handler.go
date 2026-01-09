@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/plm/predictive-liquidity-mesh/api/middleware"
 	"github.com/plm/predictive-liquidity-mesh/engine/router"
 )
 
@@ -59,7 +60,8 @@ func NewRouteHandler(graph *router.CountryGraph) *RouteHandler {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow all origins for dev
+				origin := r.Header.Get("Origin")
+				return middleware.IsOriginAllowed(origin, r.Host)
 			},
 		},
 	}

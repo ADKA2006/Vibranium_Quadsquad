@@ -39,6 +39,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - plm-network
 
@@ -54,12 +55,14 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - plm-network
 
@@ -78,11 +81,11 @@ services:
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 && echo 'RETURN 1' | cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-changeme_neo4j} -a bolt://localhost:7687 || exit 1"]
       interval: 10s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 60s
     networks:
       - plm-network
 
@@ -99,10 +102,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d plm_ledger"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
     networks:
       - plm-network
 
@@ -120,6 +124,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - plm-network
 

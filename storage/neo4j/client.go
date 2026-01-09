@@ -5,6 +5,8 @@ package neo4j
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -33,25 +35,61 @@ type Client struct {
 	database string
 }
 
-// NewClient creates a new Neo4j client
+// NewClient creates a new Neo4j client with retry logic
 func NewClient(ctx context.Context, cfg *Config) (*Client, error) {
-	driver, err := neo4j.NewDriverWithContext(
-		cfg.URI,
-		neo4j.BasicAuth(cfg.Username, cfg.Password, ""),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Neo4j driver: %w", err)
+	var driver neo4j.DriverWithContext
+	var err error
+
+	// Retry configuration
+	maxRetries := 5
+	baseDelay := 1 * time.Second
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		driver, err = neo4j.NewDriverWithContext(
+			cfg.URI,
+			neo4j.BasicAuth(cfg.Username, cfg.Password, ""),
+		)
+		if err != nil {
+			log.Printf("Neo4j driver creation failed (attempt %d/%d): %v", attempt+1, maxRetries, err)
+			if attempt < maxRetries-1 {
+				delay := baseDelay * time.Duration(1<<attempt) // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+				log.Printf("Retrying in %v...", delay)
+				select {
+				case <-time.After(delay):
+					continue
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			return nil, fmt.Errorf("failed to create Neo4j driver after %d attempts: %w", maxRetries, err)
+		}
+
+		// Verify connectivity with retry
+		if err := driver.VerifyConnectivity(ctx); err != nil {
+			log.Printf("Neo4j connectivity check failed (attempt %d/%d): %v", attempt+1, maxRetries, err)
+			driver.Close(ctx) // Close the driver before retrying
+			if attempt < maxRetries-1 {
+				delay := baseDelay * time.Duration(1<<attempt)
+				log.Printf("Retrying in %v...", delay)
+				select {
+				case <-time.After(delay):
+					continue
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			return nil, fmt.Errorf("failed to connect to Neo4j after %d attempts: %w", maxRetries, err)
+		}
+
+		// Success!
+		log.Printf("✅ Connected to Neo4j successfully (attempt %d)", attempt+1)
+		return &Client{
+			driver:   driver,
+			database: cfg.Database,
+		}, nil
 	}
 
-	// Verify connectivity
-	if err := driver.VerifyConnectivity(ctx); err != nil {
-		return nil, fmt.Errorf("failed to connect to Neo4j: %w", err)
-	}
-
-	return &Client{
-		driver:   driver,
-		database: cfg.Database,
-	}, nil
+	return nil, fmt.Errorf("failed to connect to Neo4j: %w", err)
 }
 
 // Close closes the Neo4j connection
